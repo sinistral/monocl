@@ -139,3 +139,8 @@ final class IndicatorStore {
     /// Convenience for the renderer: the three states in display order.
     var states: [IndicatorState] { [session.state, week.state, platform.state] }
 }
+
+extension IndicatorStore {
+    var sessionResetsAt: Date? { sessionSample?.resetsAt }
+    var weekResetsAt: Date? { weekSample?.resetsAt }
+}
