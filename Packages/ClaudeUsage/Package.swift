@@ -15,6 +15,7 @@ let package = Package(
         .testTarget(
             name: "ClaudeUsageTests",
             dependencies: ["ClaudeUsage"],
+            resources: [.copy("Fixtures")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]
