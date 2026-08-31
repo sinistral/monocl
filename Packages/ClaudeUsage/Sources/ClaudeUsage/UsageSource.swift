@@ -46,6 +46,21 @@ public enum UsageFailure: Error, Sendable, Equatable {
         }
     }
 
+    /// Whether the store should keep the last good sample rather than
+    /// clear it.  Only a network error or a rate limit qualifies: a
+    /// single dropped packet must not grey every light for a minute and
+    /// back.  No `default` arm, for the same reason as `stopsPolling`.
+    public var retainsSample: Bool {
+        switch self {
+        case .offline, .rateLimited:
+            true
+        case .credentialsNotFound, .keychainDenied, .keychainUnavailable,
+             .credentialsUnreadable, .tokenExpired, .authorizationRejected,
+             .accessRefused, .unexpectedResponse:
+            false
+        }
+    }
+
     public var menuText: String {
         switch self {
         case .credentialsNotFound: "Claude Code credentials not found"

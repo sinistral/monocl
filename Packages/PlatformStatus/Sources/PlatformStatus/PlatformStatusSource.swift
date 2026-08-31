@@ -24,6 +24,16 @@ public enum StatusFailure: Error, Sendable, Equatable {
         case .unexpectedResponse: "Platform status unavailable"
         }
     }
+
+    /// Whether the store should keep the last good sample rather than
+    /// clear it.  No `default` arm: adding a case must fail to compile
+    /// until someone decides whether it is sticky.
+    public var retainsSample: Bool {
+        switch self {
+        case .offline: true
+        case .unexpectedResponse: false
+        }
+    }
 }
 
 public enum StatusOutcome: Sendable, Equatable {

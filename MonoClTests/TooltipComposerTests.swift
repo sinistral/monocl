@@ -14,9 +14,10 @@ struct TooltipComposerTests {
 
     private func reading(
         _ state: IndicatorState,
-        _ detail: String
+        _ detail: String,
+        note: String? = nil
     ) -> Reading {
-        Reading(state: state, detail: detail, asOf: now)
+        Reading(state: state, detail: detail, note: note, asOf: now)
     }
 
     @Test("Three known readings produce three labelled lines")
@@ -80,5 +81,19 @@ struct TooltipComposerTests {
             timeZone: TimeZone(identifier: "UTC")!
         )
         #expect(text.contains("Offline"))
+    }
+
+    @Test("A retained reading's note follows the reset time")
+    func noteFollowsResetTime() {
+        let text = TooltipComposer.tooltip(
+            session: reading(.critical, "95%", note: "Offline"),
+            week: reading(.nominal, "20%"),
+            platform: reading(.nominal, "All Systems Operational"),
+            sessionResetsAt: now.addingTimeInterval(3600),
+            weekResetsAt: now.addingTimeInterval(86_400),
+            timeZone: TimeZone(identifier: "UTC")!
+        )
+        let first = String(text.split(separator: "\n")[0])
+        #expect(first == "Session  95%  ·  resets 13:00  ·  Offline")
     }
 }

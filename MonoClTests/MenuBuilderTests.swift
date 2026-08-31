@@ -50,4 +50,19 @@ struct MenuBuilderTests {
         #expect(t.contains { $0.hasPrefix("Week:") })
         #expect(t.contains { $0.hasPrefix("Platform:") })
     }
+
+    @Test("A retained reading's row carries its note")
+    func retainedRowCarriesNote() {
+        let store = IndicatorStore()
+        store.apply(.samples(
+            session: UsageSample(percent: 95, resetsAt: Date().addingTimeInterval(3600)),
+            week: nil,
+            asOf: .now,
+            tokenExpiresAt: Date().addingTimeInterval(7200)
+        ))
+        store.revalidate(now: .now)
+        store.apply(UsageOutcome.failure(.offline))
+        store.revalidate(now: .now)
+        #expect(titles(store).contains("Session: 95% · Offline"))
+    }
 }

@@ -85,19 +85,82 @@ struct IndicatorStoreTests {
         #expect(s.week.state == .unknown)
     }
 
-    @Test("Failures never produce color")
-    func failuresAreColorless() {
+    @Test("Every failure either retains the sample or clears it, by case", arguments: [
+        (UsageFailure.offline, true),
+        (UsageFailure.rateLimited(retryAfter: nil), true),
+        (UsageFailure.credentialsNotFound, false),
+        (UsageFailure.keychainDenied, false),
+        (UsageFailure.keychainUnavailable, false),
+        (UsageFailure.credentialsUnreadable, false),
+        (UsageFailure.tokenExpired, false),
+        (UsageFailure.authorizationRejected, false),
+        (UsageFailure.accessRefused, false),
+        (UsageFailure.unexpectedResponse, false),
+    ])
+    func failureRetainsOrClears(failure: UsageFailure, retains: Bool) {
         let s = store()
         s.apply(samples(session: 95))
         s.revalidate(now: now)
         #expect(s.session.state == .critical)
 
+        s.apply(UsageOutcome.failure(failure))
+        s.revalidate(now: now)
+
+        if retains {
+            // The value stands, annotated with why it may be ageing.
+            #expect(s.session.state == .critical)
+            #expect(s.session.detail == "95%")
+            #expect(s.session.note == failure.menuText)
+        } else {
+            #expect(s.session.state == .unknown)
+            #expect(s.session.detail == failure.menuText)
+            #expect(s.session.note == nil)
+        }
+    }
+
+    @Test("A failure never itself chooses warning or critical")
+    func failureNeverChoosesState() {
+        let s = store()
+
+        // A retained failure yields the sample's own state, unaltered by
+        // the failure - not .warning or .critical as a consequence of
+        // .offline itself.
+        s.apply(samples(session: 10))
+        s.revalidate(now: now)
+        #expect(s.session.state == .nominal)
         s.apply(UsageOutcome.failure(.offline))
         s.revalidate(now: now)
+        #expect(s.session.state == .nominal)
+
+        // A cleared failure yields .unknown regardless of how high the
+        // prior sample was.
+        s.apply(samples(session: 95))
+        s.revalidate(now: now)
+        #expect(s.session.state == .critical)
+        s.apply(UsageOutcome.failure(.keychainDenied))
+        s.revalidate(now: now)
         #expect(s.session.state == .unknown)
-        #expect(s.week.state == .unknown)
-        #expect(s.usageFailure == .offline)
-        #expect(s.session.detail == "Offline")
+    }
+
+    @Test("Platform failures retain or clear the same way as usage failures")
+    func platformFailureRetainsOrClears() {
+        let s = store()
+        s.apply(StatusOutcome.sample(
+            StatusSample(state: .warning, description: "Elevated error rates"),
+            asOf: now
+        ))
+        s.revalidate(now: now)
+        #expect(s.platform.state == .warning)
+
+        s.apply(StatusOutcome.failure(.offline))
+        s.revalidate(now: now)
+        #expect(s.platform.state == .warning)
+        #expect(s.platform.note == StatusFailure.offline.menuText)
+
+        s.apply(StatusOutcome.failure(.unexpectedResponse))
+        s.revalidate(now: now)
+        #expect(s.platform.state == .unknown)
+        #expect(s.platform.detail == StatusFailure.unexpectedResponse.menuText)
     }
 
     @Test("Only credential failures stop polling")

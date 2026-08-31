@@ -54,10 +54,15 @@ final class IndicatorStore {
             self.tokenExpiresAt = tokenExpiresAt
             usageFailure = nil
         case let .failure(failure):
-            sessionSample = nil
-            weekSample = nil
-            usageAsOf = nil
-            tokenExpiresAt = nil
+            // A network error or a rate limit leaves the last good sample
+            // in place until its own age budget expires; every other
+            // failure clears it immediately.
+            if !failure.retainsSample {
+                sessionSample = nil
+                weekSample = nil
+                usageAsOf = nil
+                tokenExpiresAt = nil
+            }
             usageFailure = failure
             if failure.stopsPolling { usagePollingStopped = true }
         }
@@ -70,8 +75,10 @@ final class IndicatorStore {
             statusAsOf = asOf
             statusFailure = nil
         case let .failure(failure):
-            statusSample = nil
-            statusAsOf = nil
+            if !failure.retainsSample {
+                statusSample = nil
+                statusAsOf = nil
+            }
             statusFailure = failure
         }
     }
@@ -116,6 +123,7 @@ final class IndicatorStore {
         return Reading(
             state: thresholds.state(forPercent: sample.percent),
             detail: "\(Int(sample.percent.rounded()))%",
+            note: usageFailure?.menuText,
             asOf: asOf
         )
     }
@@ -133,7 +141,7 @@ final class IndicatorStore {
             windowResetsAt: nil
         ))
         guard trusted else { return .unknown(detail: detail, asOf: asOf) }
-        return Reading(state: sample.state, detail: sample.description, asOf: asOf)
+        return Reading(state: sample.state, detail: sample.description, note: statusFailure?.menuText, asOf: asOf)
     }
 
     /// Convenience for the renderer: the three states in display order.

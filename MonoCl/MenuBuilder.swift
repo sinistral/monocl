@@ -24,7 +24,10 @@ enum MenuBuilder {
             ("Week", store.week),
             ("Platform", store.platform),
         ] {
-            let detail = reading.state == .unknown ? "— \(reading.detail)" : reading.detail
+            var detail = reading.state == .unknown ? "— \(reading.detail)" : reading.detail
+            if let note = reading.note {
+                detail += " · \(note)"
+            }
             let item = NSMenuItem(title: "\(label): \(detail)", action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)

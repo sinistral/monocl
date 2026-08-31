@@ -33,8 +33,14 @@ enum TooltipComposer {
         guard reading.state != .unknown else {
             return "\(padded)—  \(reading.detail)"
         }
-        guard let resetsAt else { return "\(padded)\(reading.detail)" }
-        return "\(padded)\(reading.detail)  ·  resets \(format(resetsAt, timeZone: timeZone))"
+        var text = "\(padded)\(reading.detail)"
+        if let resetsAt {
+            text += "  ·  resets \(format(resetsAt, timeZone: timeZone))"
+        }
+        if let note = reading.note {
+            text += "  ·  \(note)"
+        }
+        return text
     }
 
     private static func format(_ date: Date, timeZone: TimeZone) -> String {
