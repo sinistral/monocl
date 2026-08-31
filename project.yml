@@ -73,3 +73,11 @@ schemes:
     test:
       targets:
         - MonoClTests
+      # The test bundle is hosted by the app, so `xcodebuild test`
+      # launches MonoCl and AppDelegate reads the keychain before any
+      # test runs -- raising the authorization dialog on every run,
+      # since an ad-hoc signature changes with every build.  The host
+      # has no business reading a real credential, so it is given the
+      # state that is true of it: there is none.
+      environmentVariables:
+        MONOCL_FAKE_CREDENTIAL: not-found
