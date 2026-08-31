@@ -112,7 +112,7 @@
     {
       "id": 12,
       "subject": "Task 12: App \u2014 tooltip and menu",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Compose the multi-line hover tooltip and build the dropdown menu, both from readings, with exact expected strings.\n\n**Files:**\n- Create: `MonoCl/TooltipComposer.swift`\n- Create: `MonoCl/MenuBuilder.swift`\n- Create: `MonoClTests/TooltipComposerTests.swift`\n- Create: `MonoClTests/MenuBuilderTests.swift`\n\n**Acceptance Criteria:**\n- [ ] A tooltip for three known readings contains one line per indicator, labelled Session, Week, Platform\n- [ ] A usage line shows the percentage and the reset time\n- [ ] An unknown reading's line reads `\u2014 no recent reading` and contains no percentage\n- [ ] A failure line shows the failure's `menuText`\n- [ ] The menu contains Refresh now, Settings and Quit items\n- [ ] The menu contains a Retry item when and only when `usagePollingStopped` is true\n\n**Verify:** `xcodebuild test -scheme MonoCl -destination 'platform=macOS' > \"$SCRATCH/apptest.log\" 2>&1; echo \"exit=$?\"` \u2192 exit=0\n\n```json:metadata\n{\"files\": [\"MonoCl/TooltipComposer.swift\", \"MonoCl/MenuBuilder.swift\", \"MonoClTests/TooltipComposerTests.swift\", \"MonoClTests/MenuBuilderTests.swift\"], \"verifyCommand\": \"xcodebuild test -scheme MonoCl -destination 'platform=macOS' > \\\"$SCRATCH/apptest.log\\\" 2>&1; echo \\\"exit=$?\\\"\", \"acceptanceCriteria\": [\"A tooltip for three known readings contains one line per indicator, labelled Session, Week, Platform\", \"A usage line shows the percentage and the reset time\", \"An unknown reading's line reads `\\u2014 no recent reading` and contains no percentage\", \"A failure line shows the failure's `menuText`\", \"The menu contains Refresh now, Settings and Quit items\", \"The menu contains a Retry item when and only when `usagePollingStopped` is true\"], \"modelTier\": \"standard\"}\n```",
       "blockedBy": [
         10
@@ -149,5 +149,5 @@
       ]
     }
   ],
-  "lastUpdated": "2026-08-31T17:22:12.033298+00:00"
+  "lastUpdated": "2026-08-31T17:35:37.707818+00:00"
 }
