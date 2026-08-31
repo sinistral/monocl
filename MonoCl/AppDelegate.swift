@@ -128,9 +128,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// Rebuilds the menu's items in place rather than reassigning
-    /// `statusItem.menu`: this is called from `menuNeedsUpdate(_:)` while
-    /// the menu is on screen, and swapping in a new instance mid-tracking
-    /// is not safe.
+    /// `statusItem.menu`: this avoids reassigning it from inside the
+    /// menu's own delegate callback (`menuNeedsUpdate(_:)`). Populating
+    /// items does not re-fire `menuNeedsUpdate`, so there is no
+    /// recursion.
     private func renderMenu() {
         guard let menu = statusItem?.menu else { return }
         MenuBuilder.populate(
