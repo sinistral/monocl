@@ -140,9 +140,9 @@ struct RefresherTests {
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
         // Every trigger that reaches an endpoint goes through start():
-        // the menu opening, "Refresh now", and waking all do.
+        // "Refresh now" and waking both do.
         refresher.refreshNow()
-        refresher.refreshIfNotBackingOff()
+        refresher.refreshNow()
         refresher.refreshNow()
 
         try? await Task.sleep(for: .seconds(spacing / 3))
@@ -212,35 +212,6 @@ struct RefresherTests {
         refresher.stop()
 
         #expect(spy.callCount == 1)
-    }
-
-    @Test("refreshIfNotBackingOff produces no additional tick while backing off, unlike refreshNow")
-    func refreshIfNotBackingOffRespectsBackoff() async {
-        let noOpSpy = TickSpy { false }
-        let resetSpy = TickSpy { false }
-        let noOpRefresher = Refresher(interval: { base }, minimumSpacing: 0) { await noOpSpy.tick() }
-        let resetRefresher = Refresher(interval: { base }, minimumSpacing: 0) { await resetSpy.tick() }
-
-        noOpRefresher.start()
-        resetRefresher.start()
-        // Both accumulate the same backoff from three identical failures.
-        await waitForTicks(3, from: noOpSpy.ticks)
-        await waitForTicks(3, from: resetSpy.ticks)
-
-        noOpRefresher.refreshIfNotBackingOff()
-        resetRefresher.refreshNow()
-
-        await waitForTicks(1, from: resetSpy.ticks)
-        #expect(resetSpy.callCount == 4)
-
-        // noOpRefresher's existing task was left untouched: its
-        // accumulated backoff from three failures has not elapsed in
-        // the near-instant it took resetRefresher's fresh task to tick,
-        // so refreshIfNotBackingOff must not have produced an extra one.
-        #expect(noOpSpy.callCount == 3)
-
-        noOpRefresher.stop()
-        resetRefresher.stop()
     }
 
     @Test("stop cancels the loop")

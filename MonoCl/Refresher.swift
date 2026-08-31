@@ -13,9 +13,9 @@ import PlatformStatus
 /// Request rate is a property of this object, not of its callers
 /// ---
 ///
-/// Every trigger MonoCl has — the scheduled loop, opening the menu,
-/// "Refresh now", waking — reaches the endpoint by calling `start()`.
-/// `minimumSpacing` is enforced here so that adding a
+/// Off the scheduled cadence, only a deliberate act reaches the
+/// endpoint: launching, "Refresh now", and waking, all by calling
+/// `start()`.  `minimumSpacing` is enforced here so that adding a
 /// trigger cannot raise the request rate: no tick may land sooner than
 /// that after the previous one, whatever asked for it.  The backoff is
 /// a separate mechanism and only ever lengthens the wait further; it
@@ -108,17 +108,6 @@ final class Refresher {
 
     func refreshNow() {
         consecutiveFailures = 0
-        start()
-    }
-
-    /// Requests a tick without disturbing the backoff.  Like every
-    /// other trigger it still waits out the minimum spacing.
-    ///
-    /// Used by incidental triggers such as opening the menu: clearing the
-    /// failure count there would let a gesture the user makes to reach
-    /// Quit collapse an accumulated backoff to the base interval.
-    func refreshIfNotBackingOff() {
-        guard consecutiveFailures == 0 else { return }
         start()
     }
 }

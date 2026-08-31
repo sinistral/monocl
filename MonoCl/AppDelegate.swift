@@ -168,14 +168,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         // Re-render before the menu is shown: the held reading may have
-        // crossed its staleness budget since the last poll, whose cadence
-        // stretches to the backoff cap.  Opening the menu is how the user
-        // reaches Quit — an incidental gesture, not a deliberate refresh —
-        // so it must not clear an accumulated backoff the way "Refresh
-        // now" does.
+        // crossed its staleness budget since the last poll, and the
+        // staleness rule is what keeps the displayed value honest.
+        //
+        // Opening the menu deliberately does NOT fetch.  It is how the
+        // user reaches Quit and Settings, so a fetch here would put the
+        // request rate in the hands of a gesture made for unrelated
+        // reasons — up to one request a minute against a five-minute
+        // cadence.  A user who wants a fresh number has "Refresh now"
+        // one click away.
         render()
-        usageRefresher?.refreshIfNotBackingOff()
-        statusRefresher?.refreshIfNotBackingOff()
     }
 
     // MARK: - System notifications
