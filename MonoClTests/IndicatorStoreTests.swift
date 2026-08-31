@@ -152,4 +152,25 @@ struct IndicatorStoreTests {
         s.revalidate(now: now)
         #expect(s.session.state == .unknown)
     }
+
+    @Test("The three states are reported in display order")
+    func statesInDisplayOrder() {
+        let s = store()
+        s.apply(.samples(
+            session: UsageSample(percent: 95, resetsAt: now.addingTimeInterval(3600)),
+            week: UsageSample(percent: 10, resetsAt: now.addingTimeInterval(86_400)),
+            asOf: now,
+            tokenExpiresAt: now.addingTimeInterval(7200)
+        ))
+        s.apply(StatusOutcome.sample(
+            StatusSample(state: .warning, description: "Elevated error rates"),
+            asOf: now
+        ))
+        s.revalidate(now: now)
+
+        // Three DISTINGUISHABLE states, so a transposition fails rather
+        // than coincidentally matching: session critical (95%), week
+        // nominal (10%), platform warning.
+        #expect(s.states == [.critical, .nominal, .warning])
+    }
 }
