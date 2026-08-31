@@ -64,3 +64,28 @@ match, so the text and the dots agree.
 
 **Trigger:** MonoCl being used in a right-to-left locale, or gaining
 any user other than its author.
+
+---
+
+## 3. Sign with a stable identity so the keychain grant persists
+
+**Deferred:** replacing ad-hoc signing with a stable self-signed code
+signing identity.
+
+A keychain ACL grant is bound to the requesting binary code signature.
+MonoCl is ad-hoc signed, and an ad-hoc signature changes on every
+rebuild, so the "Always Allow" decision does not survive a rebuild: the
+authorization dialog reappears once per build.
+
+**Why deferring is acceptable:** during development a rebuild happens
+often and the prompt is a one-click annoyance, not a malfunction. The
+behaviour MonoCl must get right, which is not re-prompting on a timer
+after a denial, is unaffected by signing and is verified in Task 14.
+
+**What to build:** create a self-signed code signing certificate in the
+login keychain, set CODE_SIGN_IDENTITY in project.yml to its name, and
+confirm that a rebuild no longer re-prompts.
+
+**Trigger:** the per-build prompt becoming irritating enough to notice,
+or MonoCl being installed somewhere it runs for long stretches without
+being rebuilt.
