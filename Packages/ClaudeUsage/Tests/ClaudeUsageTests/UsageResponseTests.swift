@@ -41,7 +41,12 @@ struct UsageResponseTests {
         let r = try fixture("usage-session-only")
         #expect(r.fiveHour?.percent == 3)
         #expect(r.sevenDay == nil)
-        #expect(r.fiveHour?.resetsAt != nil)
+        // The exact value, not merely non-nil: a non-nil assertion
+        // passes on any wrong date and only fails if parsing collapses
+        // entirely, which leaves the no-fractional-seconds path — the
+        // one this test exists for — unverified.  This fixture has no
+        // fractional part, so exact equality is available.
+        #expect(r.fiveHour?.resetsAt == Date(timeIntervalSince1970: 1_788_198_600))
     }
 
     @Test("A response with no windows decodes to two absences")
