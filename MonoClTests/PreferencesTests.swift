@@ -45,6 +45,20 @@ final class PreferencesTests {
         #expect(p.criticalThreshold == 80)
     }
 
+    @Test("Raising warning masks the critical value rather than destroying it")
+    func criticalIsMaskedNotDestroyed() {
+        let p = Preferences(defaults: defaults)
+        p.criticalThreshold = 90
+        p.warningThreshold = 95
+        // Masked upward: the invariant holds on read.
+        #expect(p.criticalThreshold == 95)
+
+        p.warningThreshold = 50
+        // The user's original choice reappears, which is the point of
+        // clamping on read instead of overwriting on write.
+        #expect(p.criticalThreshold == 90)
+    }
+
     @Test("The refresh interval has a floor")
     func intervalFloor() {
         let p = Preferences(defaults: defaults)

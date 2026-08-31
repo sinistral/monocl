@@ -32,13 +32,18 @@ final class Preferences {
 
     var warningThreshold: Double {
         get { defaults.double(forKey: Key.warning) }
-        set {
-            defaults.set(newValue, forKey: Key.warning)
-            // Keep the invariant rather than trusting the UI to.
-            if criticalThreshold < newValue { criticalThreshold = newValue }
-        }
+        set { defaults.set(newValue, forKey: Key.warning) }
     }
 
+    /// The invariant "critical is never below warning" is enforced HERE,
+    /// on read, and not in `warningThreshold`'s setter.  No caller can
+    /// observe an unclamped pair, so the guarantee holds for everyone.
+    ///
+    /// Clamping on read rather than on write also preserves the user's
+    /// choice instead of overwriting it: raising the warning threshold
+    /// past the critical one MASKS the stored critical value, and
+    /// lowering the warning threshold again brings it back.  Pushing the
+    /// stored value up on write would destroy it silently.
     var criticalThreshold: Double {
         get { max(defaults.double(forKey: Key.critical), defaults.double(forKey: Key.warning)) }
         set { defaults.set(max(newValue, warningThreshold), forKey: Key.critical) }
