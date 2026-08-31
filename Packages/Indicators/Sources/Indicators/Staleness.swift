@@ -31,13 +31,20 @@ public struct TrustInputs: Sendable, Equatable {
     }
 }
 
-/// Whether a sample may still be shown.
+/// The instant this sample stops being trustworthy: the earliest of its
+/// age budget, the credential's expiry and the window's reset.
 ///
-/// All three conditions must hold.  A `nil` expiry or window means the
-/// condition does not apply to this source, not that it has lapsed.
+/// Non-optional deliberately.  `staleAfter` always bounds the result, so
+/// there is no "nothing constrains it" case for a caller to branch on.
+public func trustExpiry(_ i: TrustInputs) -> Date {
+    min(
+        i.asOf.addingTimeInterval(i.staleAfter),
+        i.tokenExpiresAt ?? .distantFuture,
+        i.windowResetsAt ?? .distantFuture
+    )
+}
+
+/// Whether a sample may still be shown.
 public func isTrusted(_ i: TrustInputs) -> Bool {
-    guard i.now.timeIntervalSince(i.asOf) < i.staleAfter else { return false }
-    if let token = i.tokenExpiresAt, token <= i.now { return false }
-    if let window = i.windowResetsAt, window <= i.now { return false }
-    return true
+    trustExpiry(i) > i.now
 }

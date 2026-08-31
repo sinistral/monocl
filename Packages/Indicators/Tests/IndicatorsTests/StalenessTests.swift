@@ -54,4 +54,35 @@ struct StalenessTests {
     func passedWindow() {
         #expect(isTrusted(inputs(windowResetsAt: now.addingTimeInterval(-1))) == false)
     }
+
+    @Test("trustExpiry is the age budget when it is the earliest bound")
+    func trustExpiryAgeIsEarliest() {
+        let i = inputs(
+            age: 10,
+            tokenExpiresAt: now.addingTimeInterval(3600),
+            windowResetsAt: now.addingTimeInterval(1800)
+        )
+        // asOf + staleAfter = (now - 10) + 300 = now + 290.
+        #expect(trustExpiry(i) == now.addingTimeInterval(290))
+    }
+
+    @Test("trustExpiry is the token expiry when it is the earliest bound")
+    func trustExpiryTokenIsEarliest() {
+        let i = inputs(
+            age: 10,
+            tokenExpiresAt: now.addingTimeInterval(120),
+            windowResetsAt: now.addingTimeInterval(1800)
+        )
+        #expect(trustExpiry(i) == now.addingTimeInterval(120))
+    }
+
+    @Test("trustExpiry is the window reset when it is the earliest bound")
+    func trustExpiryWindowIsEarliest() {
+        let i = inputs(
+            age: 10,
+            tokenExpiresAt: now.addingTimeInterval(3600),
+            windowResetsAt: now.addingTimeInterval(60)
+        )
+        #expect(trustExpiry(i) == now.addingTimeInterval(60))
+    }
 }
