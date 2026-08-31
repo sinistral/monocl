@@ -42,9 +42,13 @@ public struct KeychainCredentialReader: CredentialReading {
         case errSecItemNotFound:
             throw CredentialError.notFound
         case errSecAuthFailed, errSecUserCanceled, errSecInteractionNotAllowed:
+            // The user declined, or the keychain cannot prompt.  Sticky:
+            // retrying on a timer would raise a dialog every cycle.
             throw CredentialError.accessDenied
         default:
-            throw CredentialError.accessDenied
+            // Transient or unknown.  Deliberately NOT accessDenied: see
+            // CredentialError.unexpected.
+            throw CredentialError.unexpected(status)
         }
     }
 }

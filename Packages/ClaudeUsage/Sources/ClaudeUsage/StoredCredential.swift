@@ -35,7 +35,6 @@ public struct StoredCredential: Sendable, Decodable {
         raw > 100_000_000_000 ? Date(timeIntervalSince1970: raw / 1000)
                               : Date(timeIntervalSince1970: raw)
     }
-
 }
 
 extension StoredCredential: CustomStringConvertible, CustomDebugStringConvertible {
