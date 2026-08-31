@@ -14,11 +14,13 @@ final class FakeHTTP: HTTPFetching, @unchecked Sendable {
     }
 
     private(set) var callCount = 0
+    private(set) var lastHeaders: [String: String]?
     private let outcome: Outcome
     init(_ outcome: Outcome) { self.outcome = outcome }
 
     func get(_ url: URL, headers: [String: String]) async throws -> HTTPResult {
         callCount += 1
+        lastHeaders = headers
         switch outcome {
         case let .response(status, body, retryAfter):
             return HTTPResult(status: status, body: Data(body.utf8), retryAfter: retryAfter)

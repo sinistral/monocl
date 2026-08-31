@@ -49,6 +49,8 @@ struct UsageSourceTests {
         #expect(asOf == now)
         #expect(tokenExpiresAt == expiry)
         #expect(http.callCount == 1)
+        #expect(http.lastHeaders?["Authorization"] == "Bearer t")
+        #expect(http.lastHeaders?["anthropic-beta"] == nil)
     }
 
     @Test("HTTP statuses map to failures", arguments: [
