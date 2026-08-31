@@ -80,7 +80,7 @@
     {
       "id": 9,
       "subject": "Task 9: PlatformStatus \u2014 summary decoding and source",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Read the public Statuspage summary and map its indicator to an indicator state, repeating Anthropic's own description verbatim.\n\n**Files:**\n- Create: `Packages/PlatformStatus/Sources/PlatformStatus/SummaryResponse.swift`\n- Create: `Packages/PlatformStatus/Sources/PlatformStatus/PlatformStatusSource.swift`\n- Create: `Packages/PlatformStatus/Tests/PlatformStatusTests/Fixtures/status-none.json`\n- Create: `Packages/PlatformStatus/Tests/PlatformStatusTests/Fixtures/status-minor.json`\n- Create: `Packages/PlatformStatus/Tests/PlatformStatusTests/Fixtures/status-major.json`\n- Create: `Packages/PlatformStatus/Tests/PlatformStatusTests/Fixtures/status-unknown-indicator.json`\n- Create: `Packages/PlatformStatus/Tests/PlatformStatusTests/StatusMappingTests.swift`\n- Modify: `Packages/PlatformStatus/Package.swift`\n- Delete: `Packages/PlatformStatus/Sources/PlatformStatus/PlatformStatus.swift`\n\n**Acceptance Criteria:**\n- [ ] `none` maps to `.nominal`, `minor` to `.warning`, `major` and `critical` to `.critical`\n- [ ] An unrecognized indicator string maps to `.unknown` rather than throwing\n- [ ] The sample's description is `status.description` verbatim, not paraphrased\n- [ ] A transport failure yields `.failure(.offline)`\n- [ ] An undecodable body yields `.failure(.unexpectedResponse)`\n\n**Verify:** `swift test --package-path Packages/PlatformStatus > \"$SCRATCH/status.log\" 2>&1; echo \"exit=$?\"` \u2192 exit=0\n\n```json:metadata\n{\"files\": [\"Packages/PlatformStatus/Sources/PlatformStatus/SummaryResponse.swift\", \"Packages/PlatformStatus/Sources/PlatformStatus/PlatformStatusSource.swift\", \"Packages/PlatformStatus/Tests/PlatformStatusTests/Fixtures/status-none.json\", \"Packages/PlatformStatus/Tests/PlatformStatusTests/Fixtures/status-minor.json\", \"Packages/PlatformStatus/Tests/PlatformStatusTests/Fixtures/status-major.json\", \"Packages/PlatformStatus/Tests/PlatformStatusTests/Fixtures/status-unknown-indicator.json\", \"Packages/PlatformStatus/Tests/PlatformStatusTests/StatusMappingTests.swift\", \"Packages/PlatformStatus/Package.swift\", \"Packages/PlatformStatus/Sources/PlatformStatus/PlatformStatus.swift\"], \"verifyCommand\": \"swift test --package-path Packages/PlatformStatus > \\\"$SCRATCH/status.log\\\" 2>&1; echo \\\"exit=$?\\\"\", \"acceptanceCriteria\": [\"`none` maps to `.nominal`, `minor` to `.warning`, `major` and `critical` to `.critical`\", \"An unrecognized indicator string maps to `.unknown` rather than throwing\", \"The sample's description is `status.description` verbatim, not paraphrased\", \"A transport failure yields `.failure(.offline)`\", \"An undecodable body yields `.failure(.unexpectedResponse)`\"], \"modelTier\": \"standard\"}\n```",
       "blockedBy": [
         1,
@@ -149,5 +149,5 @@
       ]
     }
   ],
-  "lastUpdated": "2026-08-31T17:00:15.874072+00:00"
+  "lastUpdated": "2026-08-31T17:07:13.384902+00:00"
 }
