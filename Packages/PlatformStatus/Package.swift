@@ -15,6 +15,7 @@ let package = Package(
         .testTarget(
             name: "PlatformStatusTests",
             dependencies: ["PlatformStatus"],
+            resources: [.copy("Fixtures")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]

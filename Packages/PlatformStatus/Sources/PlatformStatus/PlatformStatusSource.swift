@@ -1,0 +1,82 @@
+import Foundation
+import Indicators
+import OSLog
+
+/// The platform's state at a point in time.  The description is
+/// Anthropic's own wording, repeated verbatim.
+public struct StatusSample: Sendable, Equatable {
+    public let state: IndicatorState
+    public let description: String
+
+    public init(state: IndicatorState, description: String) {
+        self.state = state
+        self.description = description
+    }
+}
+
+public enum StatusFailure: Error, Sendable, Equatable {
+    case offline
+    case unexpectedResponse
+
+    public var menuText: String {
+        switch self {
+        case .offline: "Offline"
+        case .unexpectedResponse: "Platform status unavailable"
+        }
+    }
+}
+
+public enum StatusOutcome: Sendable, Equatable {
+    case sample(StatusSample, asOf: Date)
+    case failure(StatusFailure)
+}
+
+public protocol StatusFetching: Sendable {
+    func get(_ url: URL) async throws -> (Data, Int)
+}
+
+public struct EphemeralStatusFetcher: StatusFetching {
+    public init() {}
+
+    public func get(_ url: URL) async throws -> (Data, Int) {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 5
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.finishTasksAndInvalidate() }
+        let (data, response) = try await session.data(for: request)
+        return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+    }
+}
+
+public struct PlatformStatusSource: Sendable {
+    public static let endpoint = URL(string: "https://status.claude.com/api/v2/summary.json")!
+
+    private let http: any StatusFetching
+    private let logger = Logger(subsystem: "net.sinistral.monocl", category: "status")
+
+    public init(http: any StatusFetching = EphemeralStatusFetcher()) {
+        self.http = http
+    }
+
+    public func fetch(now: Date) async -> StatusOutcome {
+        do {
+            let (data, status) = try await http.get(Self.endpoint)
+            guard status == 200 else {
+                logger.error("Statuspage returned \(status, privacy: .public)")
+                return .failure(.unexpectedResponse)
+            }
+            let decoded = try JSONDecoder().decode(SummaryResponse.self, from: data)
+            return .sample(
+                StatusSample(
+                    state: decoded.indicatorState,
+                    description: decoded.status.description
+                ),
+                asOf: now
+            )
+        } catch is URLError {
+            return .failure(.offline)
+        } catch {
+            return .failure(.unexpectedResponse)
+        }
+    }
+}
