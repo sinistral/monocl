@@ -54,4 +54,14 @@ final class Refresher {
         consecutiveFailures = 0
         start()
     }
+
+    /// Requests a tick without disturbing the backoff.
+    ///
+    /// Used by incidental triggers such as opening the menu: clearing the
+    /// failure count there would let a gesture the user makes to reach
+    /// Quit collapse an accumulated backoff to the base interval.
+    func refreshIfNotBackingOff() {
+        guard consecutiveFailures == 0 else { return }
+        start()
+    }
 }

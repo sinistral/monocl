@@ -124,6 +124,38 @@ struct RefresherTests {
         #expect(refreshedSpy.callCount > baselineSpy.callCount)
     }
 
+    @Test("refreshIfNotBackingOff produces no additional tick while backing off, unlike refreshNow")
+    func refreshIfNotBackingOffRespectsBackoff() async {
+        let noOpSpy = TickSpy { false }
+        let resetSpy = TickSpy { false }
+        let noOpRefresher = Refresher(interval: { base }) { await noOpSpy.tick() }
+        let resetRefresher = Refresher(interval: { base }) { await resetSpy.tick() }
+
+        noOpRefresher.start()
+        resetRefresher.start()
+        // Both accumulate the same backoff from three identical failures.
+        await waitForTicks(3, from: noOpSpy.ticks)
+        await waitForTicks(3, from: resetSpy.ticks)
+
+        noOpRefresher.refreshIfNotBackingOff()
+        resetRefresher.refreshNow()
+
+        // resetRefresher's restarted loop ticks immediately, before any
+        // sleep; awaiting that one tick deterministically pins the
+        // moment for the comparison below, with no sleep of our own.
+        await waitForTicks(1, from: resetSpy.ticks)
+        #expect(resetSpy.callCount == 4)
+
+        // noOpRefresher's existing task was left untouched: its
+        // accumulated backoff from three failures has not elapsed in
+        // the near-instant it took resetRefresher's fresh task to tick,
+        // so refreshIfNotBackingOff must not have produced an extra one.
+        #expect(noOpSpy.callCount == 3)
+
+        noOpRefresher.stop()
+        resetRefresher.stop()
+    }
+
     @Test("stop cancels the loop")
     func stopCancels() async {
         let spy = TickSpy { true }

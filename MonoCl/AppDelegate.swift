@@ -153,10 +153,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         // Re-render before the menu is shown: the held reading may have
         // crossed its staleness budget since the last poll, whose cadence
-        // stretches to the backoff cap.
+        // stretches to the backoff cap.  Opening the menu is how the user
+        // reaches Quit — an incidental gesture, not a deliberate refresh —
+        // so it must not clear an accumulated backoff the way "Refresh
+        // now" does.
         render()
-        usageRefresher?.refreshNow()
-        statusRefresher?.refreshNow()
+        usageRefresher?.refreshIfNotBackingOff()
+        statusRefresher?.refreshIfNotBackingOff()
     }
 
     // MARK: - System notifications
