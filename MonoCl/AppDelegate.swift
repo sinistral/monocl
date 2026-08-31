@@ -22,7 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var usageRefresher: Refresher?
     private var statusRefresher: Refresher?
     /// When the endpoint's last `Retry-After` elapses, held as an
-    /// instant rather than a duration.  Every trigger restarts the
+    /// instant rather than a duration.  Scheduling only: what the MENU
+    /// says about a rate limit comes from `store.isUsageRateLimited`,
+    /// because a 429 need not supply a deadline at all.  Every trigger restarts the
     /// poller, and a duration would be re-armed in full each time: a
     /// menu opened every few minutes during a 15-minute `Retry-After`
     /// would push the deadline out indefinitely, and a wake after hours
@@ -158,7 +160,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 retry: #selector(retryUsage),
                 openSettings: #selector(openSettings),
                 quit: #selector(quit)
-            )
+            ),
+            refreshPending: pendingRefresh
+        )
+    }
+
+    /// The menu carries one refresh command for two pollers, so it
+    /// needs one answer, and ANY poller waiting takes the command away.
+    ///
+    /// The alternative — keeping the command while either poller could
+    /// still act — was tried and is worse.  Only usage is ever rate
+    /// limited, so for the hour a `Retry-After` can last, that rule
+    /// leaves a live "Refresh now" that cannot move the two rows the
+    /// user came to read.  It would still refresh the platform row, so
+    /// it is a partial command rather than a dead one, but partial in
+    /// exactly the half nobody opened the menu for.
+    ///
+    /// The cost of this rule is that platform status cannot be
+    /// refreshed BY HAND while usage is rate limited.  It keeps polling
+    /// on its own cadence throughout, so nothing goes stale; only the
+    /// button is unavailable, and only until usage next gets an answer
+    /// that is not a refusal.
+    private var pendingRefresh: PendingRefresh? {
+        PendingRefresh.forMenu(
+            rateLimited: store.isUsageRateLimited,
+            refreshesOutstanding: [
+                usageRefresher?.isRefreshPending == true,
+                statusRefresher?.isRefreshPending == true,
+            ]
         )
     }
 
@@ -192,9 +221,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard let self else { return }
                 // The held reading may describe a moment hours ago.
                 self.store.clearOnWake(now: .now)
-                self.render()
+                // Rendered after the refreshes, as at the other
+                // deliberate call sites: they are what set the pending
+                // state the render displays.
                 self.usageRefresher?.refreshNow()
                 self.statusRefresher?.refreshNow()
+                self.render()
             }
         }
 
@@ -211,11 +243,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func refreshNow() {
         usageRefresher?.refreshNow()
         statusRefresher?.refreshNow()
+        render()
     }
 
     @objc private func retryUsage() {
         store.retryUsage()
         usageRefresher?.refreshNow()
+        render()
     }
 
     @objc private func openSettings() {

@@ -26,6 +26,17 @@ final class Refresher {
     private var task: Task<Void, Never>?
     private var consecutiveFailures = 0
 
+    /// Whether a requested refresh has yet to land.  One fact, not a
+    /// reason: WHY a refresh cannot happen is the rate limit, and the
+    /// rate limit is known to `AppDelegate`, which owns the deadline.
+    /// This object only schedules.
+    ///
+    /// Every `start()` sets it and the ordinary cadence never does,
+    /// which is the same distinction: `start()` is only ever called for
+    /// a fetch in its own right — launching, "Refresh now", waking —
+    /// never for the next turn of the loop.
+    private(set) var isRefreshPending = false
+
     /// Survives `stop()` deliberately: it records when the endpoint was
     /// last touched, which a restart does not undo.
     private var lastTickAt: Date?
@@ -51,6 +62,7 @@ final class Refresher {
     func start() {
         stop()
         let firstWait = firstTickWait(now: .now)
+        isRefreshPending = true
         task = Task { [weak self] in
             // A restart's first tick has no cadence to serve — whoever
             // called start() wants it now — so only the spacing and any
@@ -81,8 +93,10 @@ final class Refresher {
                 // misbehaved.  Counting it would hand that phantom
                 // failure to whichever loop start() has since created,
                 // since the count lives on the refresher rather than on
-                // the task.
+                // the task.  The same goes for the pending flag, which
+                // that newer loop now owns.
                 guard !Task.isCancelled else { return }
+                self.isRefreshPending = false
                 self.consecutiveFailures = succeeded ? 0 : self.consecutiveFailures + 1
             }
         }
@@ -104,9 +118,23 @@ final class Refresher {
     func stop() {
         task?.cancel()
         task = nil
+        isRefreshPending = false
     }
 
+    /// Ignored while a requested refresh is still outstanding: that
+    /// request is already being served, and restarting would tear down
+    /// the fetch it began.  The menu withdraws "Refresh now" for the
+    /// same reason, so this guard is what covers the commands it does
+    /// not withdraw — "Retry" above all.
+    ///
+    /// It does NOT cover a fetch the cadence started: the flag marks
+    /// requested refreshes only, so a click landing during a scheduled
+    /// fetch still cancels it, costing a spacing and a flashed
+    /// "Offline".  The window is one fetch every five minutes and the
+    /// alternative is tracking in-flight state a restart would race on,
+    /// which is more machinery than the fault is worth.
     func refreshNow() {
+        guard !isRefreshPending else { return }
         consecutiveFailures = 0
         start()
     }

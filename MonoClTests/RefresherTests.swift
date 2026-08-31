@@ -130,7 +130,7 @@ struct RefresherTests {
     /// loaded machine; short enough to keep these tests sub-second.
     private var spacing: TimeInterval { 0.3 }
 
-    @Test("A burst of triggers produces one tick, because none may land inside the minimum spacing")
+    @Test("A burst of triggers produces one tick, whichever of the two rules discards each one")
     func triggersCannotOutpaceTheSpacing() async {
         let spy = TickSpy { true }
         let refresher = Refresher(interval: { base }, minimumSpacing: spacing) {
@@ -140,7 +140,9 @@ struct RefresherTests {
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
         // Every trigger that reaches an endpoint goes through start():
-        // "Refresh now" and waking both do.
+        // "Refresh now" and waking both do.  The first is held by the
+        // spacing; the rest are dropped as already served.  The point
+        // is the count, not which rule caught which.
         refresher.refreshNow()
         refresher.refreshNow()
         refresher.refreshNow()
@@ -190,6 +192,136 @@ struct RefresherTests {
 
         #expect(spy.callCount == 1)
     }
+
+    // MARK: - Pending refresh
+
+    @Test("A start announces the fetch it is about to make, so a second click cannot cancel it")
+    func startAnnouncesItsFetch() async {
+        let spy = TickSpy { true }
+        let refresher = Refresher(interval: { 100 }, minimumSpacing: spacing) {
+            await spy.tick()
+        }
+
+        // Nothing defers this one — it is the first — but it is still a
+        // fetch somebody asked for, and it is about to be in flight.
+        refresher.start()
+        #expect(refresher.isRefreshPending == true)
+
+        await waitForTicks(1, from: spy.ticks)
+        #expect(refresher.isRefreshPending == false)
+        refresher.stop()
+    }
+
+    @Test("A trigger inside the spacing reports a pending refresh")
+    func deferredTriggerIsPending() async {
+        let spy = TickSpy { true }
+        let refresher = Refresher(interval: { 100 }, minimumSpacing: spacing) {
+            await spy.tick()
+        }
+
+        refresher.start()
+        await waitForTicks(1, from: spy.ticks)
+        refresher.refreshNow()
+
+        #expect(refresher.isRefreshPending == true)
+        refresher.stop()
+    }
+
+    @Test("The pending refresh clears once the deferred tick lands")
+    func pendingClearsOnTick() async {
+        let spy = TickSpy { true }
+        let refresher = Refresher(interval: { 100 }, minimumSpacing: spacing) {
+            await spy.tick()
+        }
+
+        refresher.start()
+        await waitForTicks(1, from: spy.ticks)
+        refresher.refreshNow()
+        await waitForTicks(1, from: spy.ticks)
+
+        #expect(refresher.isRefreshPending == false)
+        refresher.stop()
+    }
+
+    @Test("stop clears the pending refresh, since the deferred tick will never land")
+    func stopClearsPending() async {
+        let spy = TickSpy { true }
+        let refresher = Refresher(interval: { 100 }, minimumSpacing: spacing) {
+            await spy.tick()
+        }
+
+        refresher.start()
+        await waitForTicks(1, from: spy.ticks)
+        refresher.refreshNow()
+        refresher.stop()
+
+        #expect(refresher.isRefreshPending == false)
+    }
+
+    @Test("The pending refresh lasts until the fetch it announced returns")
+    func pendingCoversTheFetch() async {
+        let spy = TickSpy { true }
+        // Signals the moment each fetch BEGINS, so the assertion below
+        // lands mid-fetch without a sleep timed to guess at it.
+        var signal: AsyncStream<Int>.Continuation!
+        let fetchStarts = AsyncStream<Int> { signal = $0 }
+        var started = 0
+        let refresher = Refresher(interval: { 100 }, minimumSpacing: spacing) {
+            started += 1
+            signal.yield(started)
+            try? await Task.sleep(for: .seconds(0.2))
+            return await spy.tick()
+        }
+
+        refresher.start()
+        await waitForTicks(1, from: spy.ticks)
+        refresher.refreshNow()
+
+        await waitForTicks(2, from: fetchStarts)
+        // The announced fetch is in flight.  The row must still be
+        // showing, or the user can click "Refresh now" again and cancel
+        // the request that is seconds from landing.
+        #expect(refresher.isRefreshPending == true)
+
+        await waitForTicks(1, from: spy.ticks)
+        #expect(refresher.isRefreshPending == false)
+        refresher.stop()
+    }
+
+    @Test("A second request cannot cancel the fetch the first one started")
+    func secondRequestDoesNotCancelTheFirst() async {
+        let spy = TickSpy { true }
+        var signal: AsyncStream<Int>.Continuation!
+        let fetchStarts = AsyncStream<Int> { signal = $0 }
+        var started = 0
+        let refresher = Refresher(interval: { 100 }, minimumSpacing: spacing) {
+            started += 1
+            signal.yield(started)
+            try? await Task.sleep(for: .seconds(0.2))
+            return await spy.tick()
+        }
+
+        refresher.start()
+        await waitForTicks(1, from: spy.ticks)
+        // Pinned, not assumed: refreshNow() is dropped outright while a
+        // refresh is outstanding, so a test that reached here with one
+        // still pending would wedge on the wait below instead of
+        // failing.
+        #expect(refresher.isRefreshPending == false)
+        refresher.refreshNow()
+        await waitForTicks(2, from: fetchStarts)
+
+        // A second click, while the announced fetch is in flight.  It
+        // must be ignored: restarting would tear that fetch down and
+        // defer its replacement by a whole spacing.
+        refresher.refreshNow()
+        try? await Task.sleep(for: .seconds(spacing + 0.2))
+        refresher.stop()
+
+        #expect(started == 2)
+    }
+
+    // MARK: - Retry-After
 
     @Test("A restart waits out a server's Retry-After, not merely the spacing")
     func restartHonoursRetryAfter() async {

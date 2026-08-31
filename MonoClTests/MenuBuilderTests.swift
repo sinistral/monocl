@@ -15,9 +15,68 @@ struct MenuBuilderTests {
         quit: #selector(NSApplication.terminate(_:))
     )
 
-    private func titles(_ store: IndicatorStore) -> [String] {
-        MenuBuilder.menu(store: store, target: NSApp, actions: actions)
-            .items.map(\.title)
+    private func titles(_ store: IndicatorStore, refreshPending: PendingRefresh? = nil) -> [String] {
+        items(store, refreshPending: refreshPending).map(\.title)
+    }
+
+    private func items(_ store: IndicatorStore, refreshPending: PendingRefresh? = nil) -> [NSMenuItem] {
+        MenuBuilder.menu(
+            store: store,
+            target: NSApp,
+            actions: actions,
+            refreshPending: refreshPending
+        ).items
+    }
+
+    @Test("A pending refresh replaces the Refresh now command with a disabled progress row")
+    func pendingRefreshRow() {
+        let store = IndicatorStore()
+
+        let idle = titles(store)
+        #expect(idle.contains("Refresh now"))
+        #expect(idle.contains("Refreshing…") == false)
+
+        let pending = items(store, refreshPending: .refreshing)
+        #expect(pending.map(\.title).contains("Refreshing…"))
+        #expect(pending.map(\.title).contains("Refresh now") == false)
+
+        let row = pending.first { $0.title == "Refreshing…" }
+        #expect(row?.action == nil)
+    }
+
+    @Test("The row shows the rate limit for as long as it lasts, whether or not anyone asked to refresh")
+    func rowFollowsTheRateLimitNotTheRequest() {
+        // The endpoint's limit outlives any one request, so the row must
+        // not depend on somebody having clicked.
+        #expect(
+            PendingRefresh.forMenu(rateLimited: true, refreshesOutstanding: [false, false])
+                == .rateLimited
+        )
+        #expect(
+            PendingRefresh.forMenu(rateLimited: true, refreshesOutstanding: [true, false])
+                == .rateLimited
+        )
+    }
+
+    @Test("Any outstanding refresh takes the command away; none leaves it")
+    func rowFollowsAnyOutstandingRefresh() {
+        #expect(
+            PendingRefresh.forMenu(rateLimited: false, refreshesOutstanding: [false, true])
+                == .refreshing
+        )
+        #expect(
+            PendingRefresh.forMenu(rateLimited: false, refreshesOutstanding: [false, false])
+                == nil
+        )
+    }
+
+    @Test("A refresh held by the rate limit says so, rather than claiming to be fetching")
+    func rateLimitedRow() {
+        let store = IndicatorStore()
+        let t = titles(store, refreshPending: .rateLimited)
+        #expect(t.contains("Waiting out the rate limit"))
+        #expect(t.contains("Refreshing…") == false)
+        #expect(t.contains("Refresh now") == false)
     }
 
     @Test("The standard items are present")
