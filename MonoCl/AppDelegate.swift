@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     )
 
     private let usage = UsageSource(
-        credentials: KeychainCredentialReader(),
+        credentials: resolvedCredentialReader(),
         http: EphemeralHTTPFetcher()
     )
     private let status = PlatformStatusSource()
