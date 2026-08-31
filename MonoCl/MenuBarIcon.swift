@@ -43,10 +43,9 @@ enum MenuBarIcon {
         color(for: dot.tint).setFill()
 
         switch dot.fill {
-        case let .ring(faint):
+        case .ring:
             let path = NSBezierPath(ovalIn: frame.insetBy(dx: 0.75, dy: 0.75))
             path.lineWidth = 1.5
-            if faint { NSColor.labelColor.withAlphaComponent(0.35).setStroke() }
             path.stroke()
 
         case .filled:
