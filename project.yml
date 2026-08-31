@@ -1,0 +1,75 @@
+name: MonoCl
+options:
+  bundleIdPrefix: net.sinistral
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+packages:
+  Indicators:
+    path: Packages/Indicators
+  ClaudeUsage:
+    path: Packages/ClaudeUsage
+  PlatformStatus:
+    path: Packages/PlatformStatus
+
+targets:
+  MonoCl:
+    type: application
+    platform: macOS
+    sources:
+      - path: MonoCl
+    info:
+      path: MonoCl/Info.plist
+      properties:
+        # Menu bar only: no Dock icon, no main window.
+        LSUIElement: true
+        CFBundleName: MonoCl
+        CFBundleDisplayName: MonoCl
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.sinistral.monocl
+        # Ad-hoc signing: personal tool, not distributed.  The App
+        # Sandbox is deliberately absent - a sandboxed app cannot read
+        # another app's keychain item, which is the whole feature.
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: NO
+    dependencies:
+      - package: Indicators
+      - package: ClaudeUsage
+      - package: PlatformStatus
+
+  MonoClTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: MonoClTests
+    settings:
+      base:
+        # No hand-authored Info.plist for the test bundle; let Xcode
+        # synthesize the minimal one a unit-test bundle needs to sign.
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: MonoCl
+
+schemes:
+  MonoCl:
+    build:
+      targets:
+        MonoCl: all
+        MonoClTests: [test]
+    test:
+      targets:
+        - MonoClTests

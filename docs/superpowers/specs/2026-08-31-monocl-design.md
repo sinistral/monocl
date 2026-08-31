@@ -85,17 +85,45 @@ small; a package for it would add ceremony without a boundary.
 
 ```swift
 enum IndicatorState { case unknown, nominal, warning, critical }
-struct Reading { let state: IndicatorState; let detail: String; let asOf: Date }
+
+struct Reading {
+    let state: IndicatorState
+    let detail: String
+    let note: String?      // why this value may be ageing; nil normally
+    let asOf: Date
+}
 ```
+
+`note` carries the reason a RETAINED value may be ageing — the failure's
+own text when a network error or a rate limit has left the last good
+sample standing. It exists because an unannotated retained number is the
+one shape this design rules out: the reader cannot tell a fresh 62% from
+a four-minute-old one, and the justification for keeping the value is
+that it is still the best available truth, not that it is current.
+
+The store emits atoms (`"62%"`, `"Offline"`) and each surface joins them
+in its own style. Composing the joined string in the store would put
+separator style in two places and leave neither surface in control.
 
 Threshold evaluation is a pure function here: percentage plus
 configured thresholds in, `IndicatorState` out.
 
-Each source exposes one method, `func fetch() async throws ->
-[Reading]`. The protocols exist so the refresh state machine can be
-tested against a fake without network access, which is the sanctioned
-carve-out for an external-service boundary. They are not a
-pluggability mechanism; no second implementation is planned.
+Each source exposes one non-throwing method returning a summed outcome:
+`func fetch(now: Date) async -> UsageOutcome` and `-> StatusOutcome`.
+Failures are values in that outcome rather than thrown errors, because
+every failure has a defined display consequence and none is exceptional.
+
+Sources return raw samples, not resolved `Reading`s. Thresholds are
+applied by the store, so moving a threshold in Settings re-renders
+immediately rather than at the next poll — up to 60 seconds later.
+
+The protocol seams sit at the TRANSPORT boundary (`HTTPFetching`,
+`StatusFetching`, `CredentialReading`), not at the source boundary. That
+is the external-service carve-out where stubbing is sanctioned; the
+decoding, the response types and the threshold rules are always the real
+implementations. The refresh loop takes injected closures rather than a
+source protocol. None of this is a pluggability mechanism; no second
+implementation is planned.
 
 ## Data sources
 
@@ -106,31 +134,38 @@ pluggability mechanism; no second implementation is planned.
 Response carries independently-optional windows:
 
 ```json
-{ "five_hour": { "utilization": 0.47, "resets_at": 1738425600 },
-  "seven_day": { "utilization": 0.62, "resets_at": 1738857600 } }
+{ "five_hour": { "utilization": 18.0,
+                 "resets_at": "2026-08-31T17:50:00.568709+00:00",
+                 "limit_dollars": null, "used_dollars": null,
+                 "remaining_dollars": null, "locked_reason": null },
+  "seven_day": { "utilization": 14.0,
+                 "resets_at": "2026-09-04T15:00:00.568730+00:00" } }
 ```
 
-Field names and nesting come from static inspection of Claude Code's
-bundle. The values above are illustrative: no live response has been
-observed. An `overage` object and per-model weekly windows also appear
-in the bundle's handling of this response and are not consumed.
+Verified against the live endpoint on 2026-08-31; see
+`docs/superpowers/plans/2026-08-31-monocl.endpoint-contract.md`.
 
-`utilization` is a fraction; MonoCl multiplies by 100 to reach the
-percentage the thresholds are expressed in. This mirrors what Claude
-Code does when populating its status line
-(`used_percentage: five_hour.utilization * 100`).
+Two properties of this response were originally assumed from static
+inspection of Claude Code's bundle and are now known to be different.
+The bundle's status-line mapping
+(`used_percentage: five_hour.utilization * 100`) operates on Claude
+Code's **already-normalised internal state**, not on this response, so
+reading it as a description of the endpoint was a mistake:
 
-**First implementation unknown, to be resolved empirically on first
-run:** the exact required request headers. Claude Code sends
-`Content-Type: application/json` with a bearer token, and the beta
-identifier `oauth-2025-04-20` appears alongside the OAuth scopes in
-its bundle. Whether that beta header is required is unconfirmed. The
-first task is a manual `curl` against the live endpoint to establish
-the minimal working header set; the code follows the answer rather
-than guessing.
+- **`utilization` is already a percentage**, 0 to 100. It is NOT
+  multiplied.
+- **`resets_at` is an ISO-8601 timestamp string** with fractional
+  seconds and a UTC offset, not epoch seconds.
 
-Only `five_hour` and `seven_day` are consumed. `overage` and the
-per-model weekly windows are ignored.
+The request needs only a bearer token and `Content-Type`. The beta
+identifier `anthropic-beta: oauth-2025-04-20` is **optional** — the
+endpoint returns 200 with and without it — so MonoCl does not send it.
+
+The response carries many more top-level keys than MonoCl consumes,
+including per-model weekly windows, spend and extra-usage objects, and
+several that appear to be internal feature flags. Only `five_hour` and
+`seven_day` are read. Every other key is ignored, and the key set must
+be expected to change without notice.
 
 ### Platform status
 
@@ -159,6 +194,10 @@ schema:
   scopes, subscriptionType, rateLimitTier, clientId }
 ```
 
+`expiresAt` was observed as a 13-digit value, i.e. epoch
+**milliseconds**. The unit is undocumented, so the decoder also accepts
+epoch seconds rather than relying on that observation holding.
+
 ### MonoCl is strictly read-only
 
 MonoCl never writes the keychain and never refreshes the token.
@@ -182,10 +221,28 @@ that is the only way MonoCl picks up a token Claude Code has rotated.
 issues no request at all. This is cheaper and never exercises the
 401-refresh path that has been deliberately excluded.
 
-The token is read into a local, used to build one request, and never
-stored in a property, interpolated into a string, or logged. A token
-held in a property is a token in a crash report. `URLSession` uses an
-ephemeral configuration so no credential or cookie reaches disk.
+The token is read fresh from the keychain on each poll, used to build
+one request, and released when that request returns. It is never
+persisted, never logged at any level — not redacted — and never reaches
+a serialised form: `StoredCredential` is deliberately not `Encodable`,
+and both `description` and `debugDescription` report `<redacted>` in
+place of the token, so a `dump()` or a string interpolation of the
+record cannot leak it. `URLSession` uses an ephemeral configuration, so
+no credential, cookie or cache from the request reaches disk.
+
+What this does not claim: the token is necessarily a `String` in memory
+for the lifetime of one request, because no HTTP header can be set
+without one. The guarantee is about persistence, logging and
+serialisation, not about its absence from process memory. A crash report
+captured mid-request could in principle contain it; nothing MonoCl does
+makes that more likely, and no lesser design avoids it.
+
+An earlier draft of this section claimed the token was "never stored in
+a property, interpolated into a string, or logged". The first two were
+false when written — `StoredCredential.accessToken` is a stored property
+and is interpolated to build the header — and an unachievable absolute
+in a security section is worse than a weaker true one, because a reader
+trusts it and stops checking.
 
 ## Refresh and staleness
 
@@ -196,6 +253,17 @@ launch, menu open, `NSWorkspace.didWakeNotification`, and an explicit
 "Refresh now". Sleeps carry 10% tolerance
 (`Task.sleep(for:tolerance:)`) so the OS can coalesce timers and an
 idle Mac stays idle.
+
+**Only the deliberate triggers reset the backoff.** "Refresh now" and
+wake clear the accumulated failure count; menu open does not, and skips
+the fetch entirely while a backoff is in progress. The distinction
+matters because opening the menu is incidental — it is how the user
+reaches Quit — and letting it zero the failure count would collapse a
+15-minute backoff to the base interval every time the menu was opened,
+against an endpoint this design has committed to backing off from on 403
+and to honouring `Retry-After` on 429. Menu open always re-renders,
+which costs nothing and is what keeps the displayed value honest; the
+fetch is the part that must respect the backoff.
 
 A reading is trusted only while all three hold; otherwise the light is
 `.unknown`:
@@ -217,9 +285,31 @@ flickering to gray and back teaches the user to ignore it.
 
 | | `Reading`, per indicator |
 |---|---|
-| **written by** | successful `ClaudeUsage.fetch()`; successful `PlatformStatus.fetch()` |
-| **read by** | dot renderer (state to color), tooltip composer (detail and `asOf`), NSMenu items |
-| **cleared by** | age exceeding `staleAfter`; `expiresAt` passing; `resets_at` passing; `didWakeNotification`, before the post-wake fetch returns; process exit |
+| **written by** | every `revalidate(now:)`, rebuilt from scratch from the held sample |
+| **read by** | dot renderer (state to color), tooltip composer (detail, `note`, `asOf`), NSMenu items |
+| **cleared by** | age exceeding `staleAfter`; `expiresAt` passing; `resets_at` passing; `didWakeNotification`, before the post-wake fetch returns; a failure whose row in the table above says `.unknown`; process exit |
+
+`Reading` is rebuilt on every `revalidate` rather than mutated, so `note`
+needs no clearing step of its own: it is derived each time and cannot
+accumulate. That is the whole reason it is safe to add — a field with an
+empty "cleared by" column is the defect this table exists to catch.
+
+**A failed poll does not, by itself, clear the sample.** Only the
+failures whose table row says `.unknown` do. A network error or a rate
+limit leaves the last good sample in place until its age budget expires,
+because a single dropped packet greying every light for a minute and
+back is the flicker that teaches a reader to ignore the indicator.
+
+Because a retained value can therefore outlive the poll that produced
+it, the display must be revalidated when its trust expires rather than
+only when the next poll lands — the poll cadence stretches to the
+15-minute backoff cap, and a dot showing amber for a reading the
+staleness rule would reject is precisely what the colour rule exists to
+prevent. Every trusted reading already knows the instant it stops being
+trusted: the earliest of `asOf + staleAfter`, the token's expiry, and
+the window's reset. A single self-cancelling timer armed for that
+instant is sufficient, and must be independent of the fetch cadence —
+coupling them would cap the backoff and defeat its purpose.
 
 Nothing is persisted across launches. A relaunch starts blank rather
 than resurrecting a reading from an unknown point in the past. Clearing
@@ -262,7 +352,7 @@ vision deficiency, and the entire signal rides on it. MonoCl honors the
 system setting rather than inventing its own:
 `NSWorkspace.shared.accessibilityDisplayShouldDifferentiateWithoutColor`,
 observed via
-`NSWorkspace.didChangeAccessibilityDisplayOptionsNotification` so it
+`NSWorkspace.accessibilityDisplayOptionsDidChangeNotification` so it
 applies without relaunch.
 
 | State | Color | Shape when differentiating without color |
@@ -318,6 +408,8 @@ it.
 |---|---|---|---|
 | Keychain item absent | `errSecItemNotFound` | `.unknown`, stop polling usage | "Claude Code credentials not found" |
 | Keychain access denied | `errSecAuthFailed` or user cancel | `.unknown`, stop polling, manual retry only | "Keychain access denied — Retry" |
+| Keychain unavailable | any other `OSStatus` | `.unknown`, keep polling with backoff | "Keychain unavailable" |
+| Keychain record unreadable | credential JSON fails to decode | `.unknown`, stop polling, manual retry only | "Claude Code credentials unreadable" |
 | Token expired | `expiresAt` in past | `.unknown`, no request issued | "Run Claude Code to refresh" |
 | Network or timeout | `URLError` | Keep last reading until `staleAfter`, then `.unknown` | "Offline" |
 | 401 | HTTP status | `.unknown`, treat as expired, back off | "Authorization rejected" |
@@ -340,6 +432,25 @@ endpoint outside Anthropic's stated guidance. If that use is refused
 server-side, the correct response is to say so and back off to the cap,
 not to retry every minute and make a policy signal indistinguishable
 from abuse.
+
+**A malformed keychain record is not an endpoint problem.** If the
+stored credential fails to decode, the fault is local, and reporting
+"Unexpected response" would point the user at Anthropic's endpoint for a
+file on their own machine. It is sticky, because Claude Code will not
+rewrite the record in response to MonoCl polling it, so retrying to the
+backoff cap achieves nothing.
+
+**An unexpected keychain status is NOT treated as denial.** Only
+`errSecAuthFailed`, user cancellation and `errSecInteractionNotAllowed`
+mean the user declined or the keychain cannot prompt; those are sticky,
+because retrying them on a timer is what produces a dialog every minute.
+Every other `OSStatus` — a locked keychain during login, `errSecNotAvailable`,
+an I/O failure — is transient, and collapsing it into denial would do two
+harmful things at once: halt polling permanently for a condition that has
+since cleared, and tell the user "Keychain access denied", which is a
+false explanation. A wrong attribution is worse than an admitted absence,
+because it ends the reader's investigation. So unexpected statuses report
+"Keychain unavailable" and keep polling under the normal backoff.
 
 Backoff is exponential from the base interval to a 15-minute cap, reset
 on success or explicit refresh. The two sources back off independently.
@@ -417,11 +528,14 @@ lifecycle enumerated so no path leaves a reading uncleared. Refusal by
 Anthropic is handled as a first-class outcome with backoff. The tool is
 not distributed, so the exposure stays with its author.
 
-**Not executed.** No code exists yet. The endpoint's required headers
-are unconfirmed and are the first implementation task. Every claim
-about Claude Code's behavior in this document comes from static
-inspection of the on-disk 2.1.251 bundle and Anthropic's published
-documentation, not from observing a live request.
+**Not executed.** The endpoint's request contract and response shape
+have now been verified against a live request (2026-08-31), which
+corrected two assumptions this document originally carried — see the
+Claude usage section. Everything else asserted here about Claude Code's
+behavior still comes from static inspection of the on-disk 2.1.251
+bundle and Anthropic's published documentation, not from observing it
+run: in particular the claim that refresh tokens rotate is read from
+the refresh code path, not watched rotating.
 
 ## Deferred
 
