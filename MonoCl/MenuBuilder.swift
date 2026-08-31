@@ -18,6 +18,21 @@ enum MenuBuilder {
         actions: Actions
     ) -> NSMenu {
         let menu = NSMenu()
+        populate(menu, store: store, target: target, actions: actions)
+        return menu
+    }
+
+    /// Rebuilds `menu`'s items in place.  Used to refresh an already
+    /// on-screen menu from `NSMenuDelegate.menuNeedsUpdate(_:)`, where
+    /// reassigning `statusItem.menu` to a new instance mid-tracking is
+    /// not safe.
+    static func populate(
+        _ menu: NSMenu,
+        store: IndicatorStore,
+        target: AnyObject,
+        actions: Actions
+    ) {
+        menu.removeAllItems()
 
         for (label, reading) in [
             ("Session", store.session),
@@ -47,7 +62,5 @@ enum MenuBuilder {
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit MonoCl", action: actions.quit, keyEquivalent: "q")
             .target = target
-
-        return menu
     }
 }

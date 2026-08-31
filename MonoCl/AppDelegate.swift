@@ -5,7 +5,7 @@ import Observation
 import PlatformStatus
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let preferences = Preferences()
     private lazy var store = IndicatorStore(
         thresholds: preferences.thresholds,
@@ -26,6 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.toolTip = "MonoCl"
+        let menu = NSMenu()
+        menu.delegate = self
+        item.menu = menu
         statusItem = item
 
         usageRefresher = Refresher(
@@ -78,7 +81,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.thresholds = preferences.thresholds
         store.staleAfter = preferences.staleAfter
         store.revalidate(now: .now)
+        renderIcon()
+        renderMenu()
+    }
 
+    private func renderIcon() {
         guard let button = statusItem?.button else { return }
         let spec = iconSpec(
             for: store.states,
@@ -93,7 +100,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             sessionResetsAt: store.sessionResetsAt,
             weekResetsAt: store.weekResetsAt
         )
-        statusItem?.menu = MenuBuilder.menu(
+    }
+
+    /// Rebuilds the menu's items in place rather than reassigning
+    /// `statusItem.menu`: this is called from `menuNeedsUpdate(_:)` while
+    /// the menu is on screen, and swapping in a new instance mid-tracking
+    /// is not safe.
+    private func renderMenu() {
+        guard let menu = statusItem?.menu else { return }
+        MenuBuilder.populate(
+            menu,
             store: store,
             target: self,
             actions: .init(
@@ -106,6 +122,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func settingsChanged() { render() }
+
+    // MARK: - NSMenuDelegate
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        // Re-render before the menu is shown: the held reading may have
+        // crossed its staleness budget since the last poll, whose cadence
+        // stretches to the backoff cap.
+        render()
+        usageRefresher?.refreshNow()
+        statusRefresher?.refreshNow()
+    }
 
     // MARK: - System notifications
 
