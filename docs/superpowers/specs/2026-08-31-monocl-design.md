@@ -329,6 +329,7 @@ it.
 |---|---|---|---|
 | Keychain item absent | `errSecItemNotFound` | `.unknown`, stop polling usage | "Claude Code credentials not found" |
 | Keychain access denied | `errSecAuthFailed` or user cancel | `.unknown`, stop polling, manual retry only | "Keychain access denied — Retry" |
+| Keychain unavailable | any other `OSStatus` | `.unknown`, keep polling with backoff | "Keychain unavailable" |
 | Token expired | `expiresAt` in past | `.unknown`, no request issued | "Run Claude Code to refresh" |
 | Network or timeout | `URLError` | Keep last reading until `staleAfter`, then `.unknown` | "Offline" |
 | 401 | HTTP status | `.unknown`, treat as expired, back off | "Authorization rejected" |
@@ -351,6 +352,18 @@ endpoint outside Anthropic's stated guidance. If that use is refused
 server-side, the correct response is to say so and back off to the cap,
 not to retry every minute and make a policy signal indistinguishable
 from abuse.
+
+**An unexpected keychain status is NOT treated as denial.** Only
+`errSecAuthFailed`, user cancellation and `errSecInteractionNotAllowed`
+mean the user declined or the keychain cannot prompt; those are sticky,
+because retrying them on a timer is what produces a dialog every minute.
+Every other `OSStatus` — a locked keychain during login, `errSecNotAvailable`,
+an I/O failure — is transient, and collapsing it into denial would do two
+harmful things at once: halt polling permanently for a condition that has
+since cleared, and tell the user "Keychain access denied", which is a
+false explanation. A wrong attribution is worse than an admitted absence,
+because it ends the reader's investigation. So unexpected statuses report
+"Keychain unavailable" and keep polling under the normal backoff.
 
 Backoff is exponential from the base interval to a 15-minute cap, reset
 on success or explicit refresh. The two sources back off independently.
