@@ -90,7 +90,7 @@
     {
       "id": 10,
       "subject": "Task 10: App \u2014 indicator store",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** A `@MainActor @Observable` store that holds raw samples, derives the three `Reading`s by applying thresholds and the staleness rule, and clears on wake.\n\n**Files:**\n- Create: `MonoCl/IndicatorStore.swift`\n- Create: `MonoClTests/IndicatorStoreTests.swift`\n- Modify: `MonoCl.xcodeproj` (add a `MonoClTests` unit test target)\n\n**Acceptance Criteria:**\n- [ ] Applying a `.samples` outcome then revalidating produces `.warning` for a 76% session when thresholds are the defaults\n- [ ] Changing thresholds and revalidating changes the state without a new sample being applied\n- [ ] Revalidating past `staleAfter` turns a previously nominal reading `.unknown`\n- [ ] Revalidating past the sample's `resetsAt` turns that reading `.unknown` while the other is unaffected\n- [ ] Revalidating past `tokenExpiresAt` turns both usage readings `.unknown`\n- [ ] Applying a `.failure` sets `usageFailure` and turns both usage readings `.unknown`, never `.warning` or `.critical`\n- [ ] `clearOnWake()` turns all three readings `.unknown` and discards the samples\n- [ ] A `.credentialsNotFound` or `.keychainDenied` failure sets `usagePollingStopped`; other failures do not\n\n**Verify:** `xcodebuild test -scheme MonoCl -destination 'platform=macOS' > \"$SCRATCH/apptest.log\" 2>&1; echo \"exit=$?\"` \u2192 exit=0\n\n```json:metadata\n{\"files\": [\"MonoCl/IndicatorStore.swift\", \"MonoClTests/IndicatorStoreTests.swift\", \"MonoCl.xcodeproj\", \"MonoClTests\"], \"verifyCommand\": \"xcodebuild test -scheme MonoCl -destination 'platform=macOS' > \\\"$SCRATCH/apptest.log\\\" 2>&1; echo \\\"exit=$?\\\"\", \"acceptanceCriteria\": [\"Applying a `.samples` outcome then revalidating produces `.warning` for a 76% session when thresholds are the defaults\", \"Changing thresholds and revalidating changes the state without a new sample being applied\", \"Revalidating past `staleAfter` turns a previously nominal reading `.unknown`\", \"Revalidating past the sample's `resetsAt` turns that reading `.unknown` while the other is unaffected\", \"Revalidating past `tokenExpiresAt` turns both usage readings `.unknown`\", \"Applying a `.failure` sets `usageFailure` and turns both usage readings `.unknown`, never `.warning` or `.critical`\", \"`clearOnWake()` turns all three readings `.unknown` and discards the samples\", \"A `.credentialsNotFound` or `.keychainDenied` failure sets `usagePollingStopped`; other failures do not\"], \"modelTier\": \"standard\"}\n```",
       "blockedBy": [
         3,
@@ -102,7 +102,7 @@
     {
       "id": 11,
       "subject": "Task 11: App \u2014 menu bar icon rendering",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Turn an `IconSpec` into an `NSImage` sized to the menu bar, with the template flag propagated and colours resolved against the menu bar's own appearance.\n\n**Files:**\n- Create: `MonoCl/MenuBarIcon.swift`\n- Create: `MonoClTests/MenuBarIconTests.swift`\n\n**Acceptance Criteria:**\n- [ ] The produced image's `isTemplate` equals the spec's `isTemplate`\n- [ ] Image height equals `NSStatusBar.system.thickness`\n- [ ] Image width accommodates three dots plus gaps and is greater than zero\n- [ ] A spec with three dots produces a non-empty image representation\n- [ ] Colours are resolved from a supplied `NSAppearance`, not from `NSApp.effectiveAppearance`\n\n**Verify:** `xcodebuild test -scheme MonoCl -destination 'platform=macOS' > \"$SCRATCH/apptest.log\" 2>&1; echo \"exit=$?\"` \u2192 exit=0\n\n```json:metadata\n{\"files\": [\"MonoCl/MenuBarIcon.swift\", \"MonoClTests/MenuBarIconTests.swift\"], \"verifyCommand\": \"xcodebuild test -scheme MonoCl -destination 'platform=macOS' > \\\"$SCRATCH/apptest.log\\\" 2>&1; echo \\\"exit=$?\\\"\", \"acceptanceCriteria\": [\"The produced image's `isTemplate` equals the spec's `isTemplate`\", \"Image height equals `NSStatusBar.system.thickness`\", \"Image width accommodates three dots plus gaps and is greater than zero\", \"A spec with three dots produces a non-empty image representation\", \"Colours are resolved from a supplied `NSAppearance`, not from `NSApp.effectiveAppearance`\"], \"modelTier\": \"standard\"}\n```",
       "blockedBy": [
         4,
@@ -149,5 +149,5 @@
       ]
     }
   ],
-  "lastUpdated": "2026-08-31T17:07:13.384902+00:00"
+  "lastUpdated": "2026-08-31T17:22:12.033298+00:00"
 }
