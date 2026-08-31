@@ -106,31 +106,38 @@ pluggability mechanism; no second implementation is planned.
 Response carries independently-optional windows:
 
 ```json
-{ "five_hour": { "utilization": 0.47, "resets_at": 1738425600 },
-  "seven_day": { "utilization": 0.62, "resets_at": 1738857600 } }
+{ "five_hour": { "utilization": 18.0,
+                 "resets_at": "2026-08-31T17:50:00.568709+00:00",
+                 "limit_dollars": null, "used_dollars": null,
+                 "remaining_dollars": null, "locked_reason": null },
+  "seven_day": { "utilization": 14.0,
+                 "resets_at": "2026-09-04T15:00:00.568730+00:00" } }
 ```
 
-Field names and nesting come from static inspection of Claude Code's
-bundle. The values above are illustrative: no live response has been
-observed. An `overage` object and per-model weekly windows also appear
-in the bundle's handling of this response and are not consumed.
+Verified against the live endpoint on 2026-08-31; see
+`docs/superpowers/plans/2026-08-31-monocl.endpoint-contract.md`.
 
-`utilization` is a fraction; MonoCl multiplies by 100 to reach the
-percentage the thresholds are expressed in. This mirrors what Claude
-Code does when populating its status line
-(`used_percentage: five_hour.utilization * 100`).
+Two properties of this response were originally assumed from static
+inspection of Claude Code's bundle and are now known to be different.
+The bundle's status-line mapping
+(`used_percentage: five_hour.utilization * 100`) operates on Claude
+Code's **already-normalised internal state**, not on this response, so
+reading it as a description of the endpoint was a mistake:
 
-**First implementation unknown, to be resolved empirically on first
-run:** the exact required request headers. Claude Code sends
-`Content-Type: application/json` with a bearer token, and the beta
-identifier `oauth-2025-04-20` appears alongside the OAuth scopes in
-its bundle. Whether that beta header is required is unconfirmed. The
-first task is a manual `curl` against the live endpoint to establish
-the minimal working header set; the code follows the answer rather
-than guessing.
+- **`utilization` is already a percentage**, 0 to 100. It is NOT
+  multiplied.
+- **`resets_at` is an ISO-8601 timestamp string** with fractional
+  seconds and a UTC offset, not epoch seconds.
 
-Only `five_hour` and `seven_day` are consumed. `overage` and the
-per-model weekly windows are ignored.
+The request needs only a bearer token and `Content-Type`. The beta
+identifier `anthropic-beta: oauth-2025-04-20` is **optional** — the
+endpoint returns 200 with and without it — so MonoCl does not send it.
+
+The response carries many more top-level keys than MonoCl consumes,
+including per-model weekly windows, spend and extra-usage objects, and
+several that appear to be internal feature flags. Only `five_hour` and
+`seven_day` are read. Every other key is ignored, and the key set must
+be expected to change without notice.
 
 ### Platform status
 
@@ -158,6 +165,10 @@ schema:
 { accessToken, refreshToken, expiresAt, refreshTokenExpiresAt,
   scopes, subscriptionType, rateLimitTier, clientId }
 ```
+
+`expiresAt` was observed as a 13-digit value, i.e. epoch
+**milliseconds**. The unit is undocumented, so the decoder also accepts
+epoch seconds rather than relying on that observation holding.
 
 ### MonoCl is strictly read-only
 
@@ -417,11 +428,14 @@ lifecycle enumerated so no path leaves a reading uncleared. Refusal by
 Anthropic is handled as a first-class outcome with backoff. The tool is
 not distributed, so the exposure stays with its author.
 
-**Not executed.** No code exists yet. The endpoint's required headers
-are unconfirmed and are the first implementation task. Every claim
-about Claude Code's behavior in this document comes from static
-inspection of the on-disk 2.1.251 bundle and Anthropic's published
-documentation, not from observing a live request.
+**Not executed.** The endpoint's request contract and response shape
+have now been verified against a live request (2026-08-31), which
+corrected two assumptions this document originally carried — see the
+Claude usage section. Everything else asserted here about Claude Code's
+behavior still comes from static inspection of the on-disk 2.1.251
+bundle and Anthropic's published documentation, not from observing it
+run: in particular the claim that refresh tokens rotate is read from
+the refresh code path, not watched rotating.
 
 ## Deferred
 
