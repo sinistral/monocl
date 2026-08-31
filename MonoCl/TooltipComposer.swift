@@ -14,12 +14,13 @@ enum TooltipComposer {
         platform: Reading,
         sessionResetsAt: Date?,
         weekResetsAt: Date?,
-        timeZone: TimeZone = .current
+        timeZone: TimeZone = .current,
+        now: Date = .now
     ) -> String {
         [
-            line(label: "Session", reading: session, resetsAt: sessionResetsAt, timeZone: timeZone),
-            line(label: "Week", reading: week, resetsAt: weekResetsAt, timeZone: timeZone),
-            line(label: "Platform", reading: platform, resetsAt: nil, timeZone: timeZone),
+            line(label: "Session", reading: session, resetsAt: sessionResetsAt, timeZone: timeZone, now: now),
+            line(label: "Week", reading: week, resetsAt: weekResetsAt, timeZone: timeZone, now: now),
+            line(label: "Platform", reading: platform, resetsAt: nil, timeZone: timeZone, now: now),
         ].joined(separator: "\n")
     }
 
@@ -27,7 +28,8 @@ enum TooltipComposer {
         label: String,
         reading: Reading,
         resetsAt: Date?,
-        timeZone: TimeZone
+        timeZone: TimeZone,
+        now: Date
     ) -> String {
         let padded = label.padding(toLength: 9, withPad: " ", startingAt: 0)
         guard reading.state != .unknown else {
@@ -35,7 +37,7 @@ enum TooltipComposer {
         }
         var text = "\(padded)\(reading.detail)"
         if let resetsAt {
-            text += "  ·  resets \(format(resetsAt, timeZone: timeZone))"
+            text += "  ·  resets \(format(resetsAt, timeZone: timeZone, now: now))"
         }
         if let note = reading.note {
             text += "  ·  \(note)"
@@ -43,14 +45,14 @@ enum TooltipComposer {
         return text
     }
 
-    private static func format(_ date: Date, timeZone: TimeZone) -> String {
+    private static func format(_ date: Date, timeZone: TimeZone, now: Date) -> String {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         let formatter = DateFormatter()
         formatter.timeZone = timeZone
         // Within the next 12 hours a bare time is unambiguous; beyond
         // that the weekday is needed for the weekly window to make sense.
-        formatter.dateFormat = date.timeIntervalSinceNow < 12 * 3600 ? "HH:mm" : "EEE HH:mm"
+        formatter.dateFormat = date.timeIntervalSince(now) < 12 * 3600 ? "HH:mm" : "EEE HH:mm"
         return formatter.string(from: date)
     }
 }

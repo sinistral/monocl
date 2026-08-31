@@ -28,7 +28,8 @@ struct TooltipComposerTests {
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: now.addingTimeInterval(3600),
             weekResetsAt: now.addingTimeInterval(86_400),
-            timeZone: TimeZone(identifier: "UTC")!
+            timeZone: TimeZone(identifier: "UTC")!,
+            now: now
         )
         let lines = text.split(separator: "\n").map(String.init)
         #expect(lines.count == 3)
@@ -47,11 +48,28 @@ struct TooltipComposerTests {
             platform: reading(.unknown, IndicatorStore.noReading),
             sessionResetsAt: now.addingTimeInterval(3600),
             weekResetsAt: nil,
-            timeZone: TimeZone(identifier: "UTC")!
+            timeZone: TimeZone(identifier: "UTC")!,
+            now: now
         )
         let first = String(text.split(separator: "\n")[0])
         #expect(first.contains("resets"))
         #expect(first.contains("13:00"))
+    }
+
+    @Test("A reset time beyond 12 hours shows its weekday")
+    func showsWeekdayBeyond12Hours() {
+        let text = TooltipComposer.tooltip(
+            session: reading(.unknown, IndicatorStore.noReading),
+            week: reading(.nominal, "20%"),
+            platform: reading(.nominal, "All Systems Operational"),
+            sessionResetsAt: nil,
+            weekResetsAt: now.addingTimeInterval(86_400),
+            timeZone: TimeZone(identifier: "UTC")!,
+            now: now
+        )
+        let second = String(text.split(separator: "\n")[1])
+        // now is 2026-08-31 12:00 UTC, a Monday; +24h is Tuesday noon.
+        #expect(second == "Week     20%  ·  resets Tue 12:00")
     }
 
     @Test("An unknown reading shows an em dash and no percentage")
@@ -62,7 +80,8 @@ struct TooltipComposerTests {
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: nil,
             weekResetsAt: now.addingTimeInterval(86_400),
-            timeZone: TimeZone(identifier: "UTC")!
+            timeZone: TimeZone(identifier: "UTC")!,
+            now: now
         )
         let first = String(text.split(separator: "\n")[0])
         #expect(first.contains("—"))
@@ -78,7 +97,8 @@ struct TooltipComposerTests {
             platform: reading(.unknown, "Offline"),
             sessionResetsAt: nil,
             weekResetsAt: nil,
-            timeZone: TimeZone(identifier: "UTC")!
+            timeZone: TimeZone(identifier: "UTC")!,
+            now: now
         )
         #expect(text.contains("Offline"))
     }
@@ -91,7 +111,8 @@ struct TooltipComposerTests {
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: now.addingTimeInterval(3600),
             weekResetsAt: now.addingTimeInterval(86_400),
-            timeZone: TimeZone(identifier: "UTC")!
+            timeZone: TimeZone(identifier: "UTC")!,
+            now: now
         )
         let first = String(text.split(separator: "\n")[0])
         #expect(first == "Session  95%  ·  resets 13:00  ·  Offline")
