@@ -273,7 +273,7 @@ vision deficiency, and the entire signal rides on it. MonoCl honors the
 system setting rather than inventing its own:
 `NSWorkspace.shared.accessibilityDisplayShouldDifferentiateWithoutColor`,
 observed via
-`NSWorkspace.didChangeAccessibilityDisplayOptionsNotification` so it
+`NSWorkspace.accessibilityDisplayOptionsDidChangeNotification` so it
 applies without relaunch.
 
 | State | Color | Shape when differentiating without color |
