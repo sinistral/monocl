@@ -32,6 +32,25 @@ struct MenuBarIconTests {
         #expect(image.size.width == 36)
     }
 
+    @Test("The accessibility description names each dot by position")
+    func accessibilityDescriptionNamesDots() {
+        let spec = iconSpec(for: [.critical, .nominal, .warning],
+                            differentiateWithoutColor: false)
+        let image = MenuBarIcon.image(for: spec, appearance: appearance)
+        #expect(image.accessibilityDescription == "Session critical, week normal, platform warning")
+    }
+
+    @Test("A dot count other than three does not crash")
+    func accessibilityDescriptionSurvivesAMismatchedCount() {
+        let dots = [DotSpec(fill: .filled, tint: .amber), DotSpec(fill: .filled, tint: .red)]
+        let spec = IconSpec(dots: dots, isTemplate: false)
+        let image = MenuBarIcon.image(for: spec, appearance: appearance)
+        // The three-dot guarantee lives elsewhere; here a mismatch is
+        // absorbed as a shorter description rather than an out-of-range
+        // crash.
+        #expect(image.accessibilityDescription == "Session warning, week critical")
+    }
+
     @Test("The drawing handler produces a bitmap")
     func drawable() throws {
         let spec = iconSpec(for: [.unknown, .warning, .critical],

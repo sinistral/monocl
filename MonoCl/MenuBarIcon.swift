@@ -78,15 +78,22 @@ enum MenuBarIcon {
         }
     }
 
+    /// The three-dot guarantee is enforced elsewhere (`IndicatorStore.states`),
+    /// not here, so this zips rather than indexes: a mismatched dot count
+    /// yields a shorter description instead of a crash.
     private static func accessibilityDescription(for spec: IconSpec) -> String {
-        let names = spec.dots.map { dot -> String in
-            switch dot.tint {
-            case .monochrome: "normal"
-            case .dimmed: "unknown"
-            case .amber: "warning"
-            case .red: "critical"
-            }
+        let labels = ["Session", "week", "platform"]
+        return zip(labels, spec.dots)
+            .map { label, dot in "\(label) \(tintName(dot.tint))" }
+            .joined(separator: ", ")
+    }
+
+    private static func tintName(_ tint: DotSpec.Tint) -> String {
+        switch tint {
+        case .monochrome: "normal"
+        case .dimmed: "unknown"
+        case .amber: "warning"
+        case .red: "critical"
         }
-        return "Session \(names[0]), week \(names[1]), platform \(names[2])"
     }
 }
