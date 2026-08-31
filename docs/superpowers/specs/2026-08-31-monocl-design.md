@@ -115,7 +115,7 @@ every failure has a defined display consequence and none is exceptional.
 
 Sources return raw samples, not resolved `Reading`s. Thresholds are
 applied by the store, so moving a threshold in Settings re-renders
-immediately rather than at the next poll — up to 60 seconds later.
+immediately rather than at the next poll — up to a full cadence later.
 
 The protocol seams sit at the TRANSPORT boundary (`HTTPFetching`,
 `StatusFetching`, `CredentialReading`), not at the source boundary. That
@@ -248,29 +248,124 @@ trusts it and stops checking.
 
 Two independent pollers; neither can blank or slow the other.
 
-Base cadence 60 s, configurable. Additional refresh triggers: app
-launch, menu open, `NSWorkspace.didWakeNotification`, and an explicit
-"Refresh now". Sleeps carry 10% tolerance
-(`Task.sleep(for:tolerance:)`) so the OS can coalesce timers and an
-idle Mac stays idle.
+Base cadence 5 minutes, configurable down to 1 minute. Additional
+refresh triggers: app launch, `NSWorkspace.didWakeNotification`, and an
+explicit "Refresh now". Sleeps carry 10% tolerance
+(`Task.sleep(for:tolerance:)`) so the OS can coalesce timers and an idle
+Mac stays idle.
 
-**Only the deliberate triggers reset the backoff.** "Refresh now" and
-wake clear the accumulated failure count; menu open does not, and skips
-the fetch entirely while a backoff is in progress. The distinction
-matters because opening the menu is incidental — it is how the user
-reaches Quit — and letting it zero the failure count would collapse a
-15-minute backoff to the base interval every time the menu was opened,
-against an endpoint this design has committed to backing off from on 403
-and to honouring `Retry-After` on 429. Menu open always re-renders,
-which costs nothing and is what keeps the displayed value honest; the
-fetch is the part that must respect the backoff.
+**Opening the menu does not fetch.** It re-renders, which is what keeps
+the displayed value honest, and nothing more. A fetch there hands the
+request rate to a gesture made for unrelated reasons — the menu is how
+the user reaches Quit and Settings — and one open a minute against a
+five-minute cadence is five times the traffic the setting asks for.
+Opening it to check a number is served by the staleness rule, which
+says outright when the reading is too old to trust, and by "Refresh
+now" one click away.
+
+The cadence is set by the endpoint's tolerance, not the display's
+appetite. The windows being reported span five hours and seven days, so
+even a minute resolves them more finely than the data changes, and
+`api/oauth/usage` answers 429 to a caller that asks too often.
+
+**No request may land within `minimumRefreshInterval` of the last one**,
+whichever trigger asked for it. Every trigger reaches the endpoint
+through `Refresher.start()`, so the floor is enforced there rather than
+at the four call sites: the request rate is then a property of the
+refresher, and adding a fifth trigger cannot raise it. A trigger that
+arrives inside the floor is deferred to the end of it, never dropped —
+"Refresh now" always refreshes, just not necessarily this instant. The
+backoff is a separate mechanism layered on top, and only ever lengthens
+the wait; because it reacts to failures it bounds nothing at all while
+every poll succeeds, which is precisely the case that earns a 429.
+
+A restarted loop's first request also waits out any `Retry-After` the
+endpoint last supplied. The spacing is MonoCl's own politeness and the
+backoff is its reaction to failure, but `Retry-After` is the server
+stating a limit outright, so no trigger may step over it — least of all
+waking, which restarts both pollers with no user involved. It is held
+as the INSTANT it elapses, not as a duration: every trigger restarts
+the poller, so a duration would be re-armed in full each time, and a
+menu opened periodically through a long `Retry-After` would push the
+deadline out indefinitely.
+
+While a refresh the user ASKED FOR is outstanding — deferred or in
+flight — the menu replaces its "Refresh now" command with a disabled
+"Refreshing…" row. Otherwise the
+deferral is indistinguishable from a dead button: the user clicks,
+nothing visibly happens for up to a minute, and the reasonable
+conclusion is that the app is broken rather than that it is being
+polite. Every request off the cadence is one somebody asked for, so
+there is no second kind to tell apart.
+
+The row covers the fetch itself and not merely the wait before it.
+Re-enabling the command mid-request invites a second click, and that
+click restarts the poller — cancelling a fetch that was about to land
+and deferring its replacement by a whole spacing.
+
+The menu carries one refresh command for two independent pollers, and
+ANY poller waiting takes the command away. The alternative — keeping it
+while either poller could still act — was tried and is worse: only the
+usage poller is ever rate limited, so for the hour a `Retry-After` can
+last it leaves a live "Refresh now" that cannot move the two rows the
+user came to read. It would still refresh the platform row, so it is a
+partial command rather than a dead one — but partial in exactly the
+half nobody opened the menu for.
+
+The cost is that platform status cannot be refreshed BY HAND while
+usage is rate limited. It keeps polling on its own cadence throughout,
+so nothing goes stale; only the button is unavailable, and only until
+usage next gets an answer that is not a refusal.
+
+**The row follows the rate limit, not the request.** The limit outlives
+any one click: for as long as it stands, no refresh of usage can
+succeed, whether or not anyone has asked. Deriving the row from an
+outstanding request instead leaves the command live through most of the
+window — the poller sleeps out the limit on its ordinary cadence with
+nothing pending — so the first click of the hour would still meet a
+command that cannot help. `Refresher` therefore reports only WHETHER a
+requested refresh is outstanding, never why.
+
+It is keyed on the last usage FAILURE, not on the `Retry-After`
+deadline the scheduler holds, because a 429 need not carry a parseable
+header: `rateLimited(retryAfter: nil)` is a real outcome, and MonoCl is
+no less rate limited for not being told how long. That is also the
+fact the Session and Week rows report, so the menu cannot read one and
+show the other. It clears when usage next gets an answer that is not a
+refusal, which is the same instant those rows stop saying it.
+
+A request arriving while one is outstanding is IGNORED rather than
+restarted, which covers the commands the row does not withdraw —
+"Retry" above all. It does NOT cover a fetch the CADENCE started:
+nothing is pending then, so a click landing in that window cancels it,
+costing a spacing and a flashed "Offline". That window is one fetch
+every five minutes, and closing it means tracking in-flight state that
+a restart would race on — more machinery than the fault is worth.
+
+**The row names which wait it is.** A spacing deferral is at most a
+minute and reads honestly as "Refreshing…"; a `Retry-After` can be an
+hour — the endpoint was observed returning 3372 seconds — and an hour
+of "Refreshing…" is a claim the app cannot support, sitting directly
+under two rows that say "Rate limited". That case reads "Waiting out
+the rate limit" instead. Hence one value rather than a flag plus a
+reason: the menu has one row to fill, and a pair of booleans admits a
+state that is both.
+
+**Every trigger is deliberate, so every trigger resets the backoff.**
+"Refresh now" and wake are the only two, and both are acts, not
+by-products. That is the whole reason the menu does not fetch: an
+incidental trigger would have to be told apart from a deliberate one at
+every point that touches the schedule — the failure count, the pending
+row, the ordering of render against fetch — and each of those
+distinctions is a place to get it wrong. Removing the trigger removes
+the distinction.
 
 A reading is trusted only while all three hold; otherwise the light is
 `.unknown`:
 
 | | |
 |---|---|
-| Age | `now - asOf < staleAfter`, default 5 minutes |
+| Age | `now - asOf < staleAfter`, default 15 minutes, never below two poll intervals |
 | Token | `expiresAt` in the future |
 | Window | `resets_at` in the future |
 
@@ -279,7 +374,12 @@ The window condition mirrors Claude Code, which drops any window whose
 
 The age budget spans several cycles deliberately. A single failed poll
 must not blank a light: transient blips are common, and a dot
-flickering to gray and back teaches the user to ignore it.
+flickering to gray and back teaches the user to ignore it. That is why
+`staleAfter` is clamped on read to at least twice the cadence: a budget
+shorter than the interval would expire every reading before its
+replacement arrived. The clamp masks the stored value rather than
+overwriting it, so shortening the interval restores the user's own
+choice — the same rule the critical threshold follows.
 
 ### State lifecycle
 
@@ -288,6 +388,20 @@ flickering to gray and back teaches the user to ignore it.
 | **written by** | every `revalidate(now:)`, rebuilt from scratch from the held sample |
 | **read by** | dot renderer (state to color), tooltip composer (detail, `note`, `asOf`), NSMenu items |
 | **cleared by** | age exceeding `staleAfter`; `expiresAt` passing; `resets_at` passing; `didWakeNotification`, before the post-wake fetch returns; a failure whose row in the table above says `.unknown`; process exit |
+
+| | `isRefreshPending`, per refresher |
+|---|---|
+| **written by** | `Refresher.start()`; every caller of `start()` — launching, "Refresh now", waking — is a fetch in its own right, never the next turn of the loop |
+| **read by** | `refreshNow()`, which drops a request already being served; `PendingRefresh.forMenu`, which turns both pollers' answers plus `store.isUsageRateLimited` into the row |
+| **cleared by** | the refresh task once its fetch returns, unless cancelled meanwhile; `stop()`, since a cancelled tick will never land |
+
+The displayed `PendingRefresh` is derived, not stored, so it needs no
+row of its own here: it is recomputed on every render from this flag
+and `rateLimitedUntil`, and cannot go stale independently of them.
+
+The ordinary cadence is not pending: nobody asked for it, and
+announcing it would leave the row showing almost permanently and say
+nothing.
 
 `Reading` is rebuilt on every `revalidate` rather than mutated, so `note`
 needs no clearing step of its own: it is derived each time and cannot
@@ -383,8 +497,8 @@ One shared pair for both usage lights, in `UserDefaults`:
 |---|---|
 | Warning threshold | 75% |
 | Critical threshold | 90% |
-| Refresh interval | 60 s |
-| Stale after | 5 minutes |
+| Refresh interval | 5 minutes (range 1–15 minutes) |
+| Stale after | 15 minutes (never below two refresh intervals) |
 
 Comparisons are inclusive: `>= 75` is warning, `>= 90` is critical. So
 74.9 is nominal, 75.0 is warning, 89.9 is warning, 90.0 is critical.
