@@ -6,9 +6,10 @@ struct MonoClApp: App {
 
     var body: some Scene {
         Settings {
-            Text("Settings arrive in Task 13.")
-                .padding()
-                .frame(width: 320)
+            SettingsView(
+                preferences: appDelegate.preferences,
+                onChange: { appDelegate.settingsChanged() }
+            )
         }
     }
 }
