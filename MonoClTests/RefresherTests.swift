@@ -51,7 +51,7 @@ struct RefresherTests {
     @Test("Ticking continues across repeated failures")
     func ticksAcrossFailures() async {
         let spy = TickSpy { false }
-        let refresher = Refresher(interval: { base }) { await spy.tick() }
+        let refresher = Refresher(interval: { base }, minimumSpacing: 0) { await spy.tick() }
 
         refresher.start()
         await waitForTicks(4, from: spy.ticks)
@@ -64,8 +64,8 @@ struct RefresherTests {
     func failuresLengthenTheInterval() async {
         let failing = TickSpy { false }
         let succeeding = TickSpy { true }
-        let a = Refresher(interval: { base }) { await failing.tick() }
-        let b = Refresher(interval: { base }) { await succeeding.tick() }
+        let a = Refresher(interval: { base }, minimumSpacing: 0) { await failing.tick() }
+        let b = Refresher(interval: { base }, minimumSpacing: 0) { await succeeding.tick() }
 
         a.start()
         b.start()
@@ -81,8 +81,8 @@ struct RefresherTests {
         var attempt = 0
         let recovers = TickSpy { attempt += 1; return attempt > 3 }
         let staysFailed = TickSpy { false }
-        let a = Refresher(interval: { base }) { await recovers.tick() }
-        let b = Refresher(interval: { base }) { await staysFailed.tick() }
+        let a = Refresher(interval: { base }, minimumSpacing: 0) { await recovers.tick() }
+        let b = Refresher(interval: { base }, minimumSpacing: 0) { await staysFailed.tick() }
 
         a.start()
         b.start()
@@ -100,8 +100,8 @@ struct RefresherTests {
     func refreshNowClearsCount() async {
         let refreshedSpy = TickSpy { false }
         let baselineSpy = TickSpy { false }
-        let refreshed = Refresher(interval: { base }) { await refreshedSpy.tick() }
-        let baseline = Refresher(interval: { base }) { await baselineSpy.tick() }
+        let refreshed = Refresher(interval: { base }, minimumSpacing: 0) { await refreshedSpy.tick() }
+        let baseline = Refresher(interval: { base }, minimumSpacing: 0) { await baselineSpy.tick() }
 
         refreshed.start()
         baseline.start()
@@ -124,12 +124,102 @@ struct RefresherTests {
         #expect(refreshedSpy.callCount > baselineSpy.callCount)
     }
 
+    // MARK: - Minimum spacing
+
+    /// Long enough that a burst of triggers cannot outrun it even on a
+    /// loaded machine; short enough to keep these tests sub-second.
+    private var spacing: TimeInterval { 0.3 }
+
+    @Test("A burst of triggers produces one tick, because none may land inside the minimum spacing")
+    func triggersCannotOutpaceTheSpacing() async {
+        let spy = TickSpy { true }
+        let refresher = Refresher(interval: { base }, minimumSpacing: spacing) {
+            await spy.tick()
+        }
+
+        refresher.start()
+        await waitForTicks(1, from: spy.ticks)
+        // Every trigger that reaches an endpoint goes through start():
+        // the menu opening, "Refresh now", and waking all do.
+        refresher.refreshNow()
+        refresher.refreshIfNotBackingOff()
+        refresher.refreshNow()
+
+        try? await Task.sleep(for: .seconds(spacing / 3))
+        refresher.stop()
+
+        #expect(spy.callCount == 1)
+    }
+
+    @Test("A trigger inside the spacing is deferred, not dropped")
+    func deferredTriggerStillLands() async {
+        let spy = TickSpy { true }
+        // A base interval far longer than the test's lifetime, so the
+        // second tick can only come from the deferred trigger.
+        let refresher = Refresher(interval: { 100 }, minimumSpacing: spacing) {
+            await spy.tick()
+        }
+
+        refresher.start()
+        await waitForTicks(1, from: spy.ticks)
+        let firstTickAt = Date.now
+        refresher.refreshNow()
+        await waitForTicks(1, from: spy.ticks)
+        let secondTickAt = Date.now
+        refresher.stop()
+
+        #expect(spy.callCount == 2)
+        // Measured from after the first tick was observed rather than
+        // from when it was issued, so the gap reads a hair short of the
+        // spacing.  An unfloored trigger would read ~0 either way.
+        #expect(secondTickAt.timeIntervalSince(firstTickAt) >= spacing * 0.9)
+    }
+
+    @Test("The spacing also floors the scheduled cadence, so a short interval cannot beat it")
+    func spacingFloorsTheCadence() async {
+        let spy = TickSpy { true }
+        let refresher = Refresher(interval: { base }, minimumSpacing: spacing) {
+            await spy.tick()
+        }
+
+        refresher.start()
+        await waitForTicks(1, from: spy.ticks)
+        // base is 0.01 s, so an unfloored loop would tick ~30 times here.
+        try? await Task.sleep(for: .seconds(spacing / 3))
+        refresher.stop()
+
+        #expect(spy.callCount == 1)
+    }
+
+    @Test("A restart waits out a server's Retry-After, not merely the spacing")
+    func restartHonoursRetryAfter() async {
+        let spy = TickSpy { false }
+        var retryAfter: TimeInterval?
+        // No spacing and a long cadence, so the only thing that can hold
+        // the restarted tick back is the Retry-After.
+        let refresher = Refresher(
+            interval: { 100 },
+            minimumSpacing: 0,
+            retryAfter: { retryAfter }
+        ) { await spy.tick() }
+
+        refresher.start()
+        await waitForTicks(1, from: spy.ticks)
+
+        retryAfter = 0.3
+        refresher.refreshNow()
+        try? await Task.sleep(for: .seconds(0.1))
+        refresher.stop()
+
+        #expect(spy.callCount == 1)
+    }
+
     @Test("refreshIfNotBackingOff produces no additional tick while backing off, unlike refreshNow")
     func refreshIfNotBackingOffRespectsBackoff() async {
         let noOpSpy = TickSpy { false }
         let resetSpy = TickSpy { false }
-        let noOpRefresher = Refresher(interval: { base }) { await noOpSpy.tick() }
-        let resetRefresher = Refresher(interval: { base }) { await resetSpy.tick() }
+        let noOpRefresher = Refresher(interval: { base }, minimumSpacing: 0) { await noOpSpy.tick() }
+        let resetRefresher = Refresher(interval: { base }, minimumSpacing: 0) { await resetSpy.tick() }
 
         noOpRefresher.start()
         resetRefresher.start()
@@ -140,9 +230,6 @@ struct RefresherTests {
         noOpRefresher.refreshIfNotBackingOff()
         resetRefresher.refreshNow()
 
-        // resetRefresher's restarted loop ticks immediately, before any
-        // sleep; awaiting that one tick deterministically pins the
-        // moment for the comparison below, with no sleep of our own.
         await waitForTicks(1, from: resetSpy.ticks)
         #expect(resetSpy.callCount == 4)
 
@@ -159,7 +246,7 @@ struct RefresherTests {
     @Test("stop cancels the loop")
     func stopCancels() async {
         let spy = TickSpy { true }
-        let refresher = Refresher(interval: { base }) { await spy.tick() }
+        let refresher = Refresher(interval: { base }, minimumSpacing: 0) { await spy.tick() }
 
         refresher.start()
         await waitForTicks(2, from: spy.ticks)

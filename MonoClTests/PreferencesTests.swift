@@ -22,8 +22,8 @@ final class PreferencesTests {
         let p = Preferences(defaults: defaults)
         #expect(p.warningThreshold == 75)
         #expect(p.criticalThreshold == 90)
-        #expect(p.refreshInterval == 60)
-        #expect(p.staleAfter == 300)
+        #expect(p.refreshInterval == 300)
+        #expect(p.staleAfter == 900)
     }
 
     @Test("Values round-trip")
@@ -63,7 +63,26 @@ final class PreferencesTests {
     func intervalFloor() {
         let p = Preferences(defaults: defaults)
         p.refreshInterval = 1
-        #expect(p.refreshInterval == 15)
+        #expect(p.refreshInterval == 60)
+    }
+
+    @Test("The stale budget is never shorter than two poll intervals")
+    func staleBudgetSpansTwoPolls() {
+        let p = Preferences(defaults: defaults)
+        p.refreshInterval = 300
+        p.staleAfter = 60
+        #expect(p.staleAfter == 600)
+    }
+
+    @Test("Shortening the interval unmasks the stale budget the user chose")
+    func staleBudgetIsMaskedNotDestroyed() {
+        let p = Preferences(defaults: defaults)
+        p.refreshInterval = 300
+        p.staleAfter = 120
+        #expect(p.staleAfter == 600)
+
+        p.refreshInterval = 60
+        #expect(p.staleAfter == 120)
     }
 
     @Test("Thresholds are exposed as an Indicators value")

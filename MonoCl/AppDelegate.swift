@@ -21,7 +21,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var usageRefresher: Refresher?
     private var statusRefresher: Refresher?
-    private var lastRateLimitRetryAfter: TimeInterval?
+    /// When the endpoint's last `Retry-After` elapses, held as an
+    /// instant rather than a duration.  Every trigger restarts the
+    /// poller, and a duration would be re-armed in full each time: a
+    /// menu opened every few minutes during a 15-minute `Retry-After`
+    /// would push the deadline out indefinitely, and a wake after hours
+    /// asleep would wait the whole period again before the fetch that
+    /// matters most.
+    private var rateLimitedUntil: Date?
 
     /// Fires once a retained reading's trust would otherwise lapse
     /// unnoticed.  Independent of `Refresher`'s cadence on purpose: that
@@ -39,13 +46,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         usageRefresher = Refresher(
             interval: { [preferences] in preferences.refreshInterval },
-            retryAfter: { [weak self] in self?.lastRateLimitRetryAfter }
+            minimumSpacing: Preferences.minimumRefreshInterval,
+            retryAfter: { [weak self] in self?.rateLimitRemaining(now: .now) }
         ) { [weak self] in
             await self?.pollUsage() ?? false
         }
 
         statusRefresher = Refresher(
-            interval: { [preferences] in preferences.refreshInterval }
+            interval: { [preferences] in preferences.refreshInterval },
+            minimumSpacing: Preferences.minimumRefreshInterval
         ) { [weak self] in
             await self?.pollStatus() ?? false
         }
@@ -63,14 +72,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !store.usagePollingStopped else { return true }
         let outcome = await usage.fetch(now: .now)
         if case let .failure(.rateLimited(retryAfter)) = outcome {
-            lastRateLimitRetryAfter = retryAfter
+            rateLimitedUntil = retryAfter.map { Date.now.addingTimeInterval($0) }
         } else {
-            lastRateLimitRetryAfter = nil
+            rateLimitedUntil = nil
         }
         store.apply(outcome)
         render()
         if case .samples = outcome { return true }
         return false
+    }
+
+    private func rateLimitRemaining(now: Date) -> TimeInterval? {
+        guard let rateLimitedUntil else { return nil }
+        let remaining = rateLimitedUntil.timeIntervalSince(now)
+        return remaining > 0 ? remaining : nil
     }
 
     private func pollStatus() async -> Bool {
