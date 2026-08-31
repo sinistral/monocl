@@ -41,7 +41,9 @@ final class IndicatorStore {
         platform = .unknown(detail: Self.noReading, asOf: epoch)
     }
 
-    static let noReading = "no recent reading"
+    // Not actor-isolated: TooltipComposerTests reads this from a
+    // nonisolated test suite, and a constant string carries no actor state.
+    nonisolated static let noReading = "no recent reading"
 
     func apply(_ outcome: UsageOutcome) {
         switch outcome {
