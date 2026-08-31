@@ -23,6 +23,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusRefresher: Refresher?
     private var lastRateLimitRetryAfter: TimeInterval?
 
+    /// Fires once a retained reading's trust would otherwise lapse
+    /// unnoticed.  Independent of `Refresher`'s cadence on purpose: that
+    /// cadence stretches to the 15-minute backoff cap, and folding this
+    /// in would defeat the backoff's whole purpose.
+    private var expiryTask: Task<Void, Never>?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.toolTip = "MonoCl"
@@ -83,6 +89,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         store.revalidate(now: .now)
         renderIcon()
         renderMenu()
+        armExpiryTimer()
+    }
+
+    /// Cancels and re-arms the expiry timer for the earliest instant any
+    /// currently-trusted reading stops being trusted. A retained reading
+    /// can outlive the poll that produced it, so nothing else would
+    /// revalidate it before the next poll — which, under backoff, may be
+    /// up to 15 minutes away.
+    private func armExpiryTimer() {
+        expiryTask?.cancel()
+        expiryTask = nil
+        let now = Date.now
+        guard let expiry = store.nextTrustExpiry(now: now), expiry > now else { return }
+        let wait = expiry.timeIntervalSince(now)
+        expiryTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(wait), tolerance: .seconds(wait * 0.1))
+            guard let self, !Task.isCancelled else { return }
+            self.render()
+        }
     }
 
     private func renderIcon() {

@@ -112,14 +112,8 @@ final class IndicatorStore {
         guard let sample, let asOf = usageAsOf else {
             return .unknown(detail: detail, asOf: now)
         }
-        let trusted = isTrusted(TrustInputs(
-            asOf: asOf,
-            now: now,
-            staleAfter: staleAfter,
-            tokenExpiresAt: tokenExpiresAt,
-            windowResetsAt: sample.resetsAt
-        ))
-        guard trusted else { return .unknown(detail: detail, asOf: asOf) }
+        let inputs = usageTrustInputs(asOf: asOf, windowResetsAt: sample.resetsAt, now: now)
+        guard isTrusted(inputs) else { return .unknown(detail: detail, asOf: asOf) }
         return Reading(
             state: thresholds.state(forPercent: sample.percent),
             detail: "\(Int(sample.percent.rounded()))%",
@@ -133,15 +127,43 @@ final class IndicatorStore {
         guard let sample = statusSample, let asOf = statusAsOf else {
             return .unknown(detail: detail, asOf: now)
         }
-        let trusted = isTrusted(TrustInputs(
+        let inputs = statusTrustInputs(asOf: asOf, now: now)
+        guard isTrusted(inputs) else { return .unknown(detail: detail, asOf: asOf) }
+        return Reading(state: sample.state, detail: sample.description, note: statusFailure?.menuText, asOf: asOf)
+    }
+
+    private func usageTrustInputs(asOf: Date, windowResetsAt: Date, now: Date) -> TrustInputs {
+        TrustInputs(
             asOf: asOf,
             now: now,
             staleAfter: staleAfter,
-            tokenExpiresAt: nil,
-            windowResetsAt: nil
-        ))
-        guard trusted else { return .unknown(detail: detail, asOf: asOf) }
-        return Reading(state: sample.state, detail: sample.description, note: statusFailure?.menuText, asOf: asOf)
+            tokenExpiresAt: tokenExpiresAt,
+            windowResetsAt: windowResetsAt
+        )
+    }
+
+    private func statusTrustInputs(asOf: Date, now: Date) -> TrustInputs {
+        TrustInputs(asOf: asOf, now: now, staleAfter: staleAfter, tokenExpiresAt: nil, windowResetsAt: nil)
+    }
+
+    /// The earliest instant any CURRENTLY TRUSTED reading stops being
+    /// trusted, or nil if none is.  AppDelegate arms a single timer for
+    /// this so a retained reading revalidates before its next poll
+    /// lands — the poll cadence stretches to the backoff cap, and
+    /// `trustExpiry` does not itself consult `now`, so nothing here
+    /// schedules a wake in the past for a reading that already lapsed.
+    func nextTrustExpiry(now: Date) -> Date? {
+        var expiries: [Date] = []
+        if session.state != .unknown, let sample = sessionSample, let asOf = usageAsOf {
+            expiries.append(trustExpiry(usageTrustInputs(asOf: asOf, windowResetsAt: sample.resetsAt, now: now)))
+        }
+        if week.state != .unknown, let sample = weekSample, let asOf = usageAsOf {
+            expiries.append(trustExpiry(usageTrustInputs(asOf: asOf, windowResetsAt: sample.resetsAt, now: now)))
+        }
+        if platform.state != .unknown, let asOf = statusAsOf {
+            expiries.append(trustExpiry(statusTrustInputs(asOf: asOf, now: now)))
+        }
+        return expiries.min()
     }
 
     /// Convenience for the renderer: the three states in display order.

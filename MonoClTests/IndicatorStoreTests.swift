@@ -216,6 +216,28 @@ struct IndicatorStoreTests {
         #expect(s.session.state == .unknown)
     }
 
+    @Test("nextTrustExpiry is the earliest bound among trusted readings")
+    func nextTrustExpiryIsEarliestAmongTrusted() {
+        let s = store(staleAfter: 300)
+        s.apply(.samples(
+            // Session's own reset (now + 120) is its earliest bound.
+            session: UsageSample(percent: 10, resetsAt: now.addingTimeInterval(120)),
+            week: UsageSample(percent: 20, resetsAt: now.addingTimeInterval(86_400)),
+            asOf: now,
+            tokenExpiresAt: now.addingTimeInterval(7200)
+        ))
+        s.revalidate(now: now)
+        // Week's own bound (its age budget, now + 300) is later than
+        // session's; platform has no sample and contributes nothing.
+        #expect(s.nextTrustExpiry(now: now) == now.addingTimeInterval(120))
+    }
+
+    @Test("nextTrustExpiry is nil when nothing is currently trusted")
+    func nextTrustExpiryNilWhenNothingTrusted() {
+        let s = store()
+        #expect(s.nextTrustExpiry(now: now) == nil)
+    }
+
     @Test("The three states are reported in display order")
     func statesInDisplayOrder() {
         let s = store()
