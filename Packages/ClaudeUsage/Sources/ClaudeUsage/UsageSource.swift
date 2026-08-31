@@ -20,6 +20,11 @@ public enum UsageFailure: Error, Sendable, Equatable {
     /// A keychain failure that is neither absence nor denial, so it may
     /// clear on its own and must not stop polling.
     case keychainUnavailable
+    /// The stored credential could not be decoded.  The fault is local,
+    /// so it is not reported as an endpoint problem, and it is sticky:
+    /// Claude Code will not rewrite the record in response to MonoCl
+    /// polling it, so retrying to the backoff cap achieves nothing.
+    case credentialsUnreadable
     case tokenExpired
     case offline
     case authorizationRejected
@@ -28,13 +33,16 @@ public enum UsageFailure: Error, Sendable, Equatable {
     case unexpectedResponse
 
     /// Whether this failure means polling should stop until the user asks
-    /// for a retry.  Only the two keychain outcomes qualify: retrying a
-    /// denied keychain read on a timer would throw the system
-    /// authorization dialog at the user every cycle.
+    /// for a retry.  No `default` arm: adding a case must fail to compile
+    /// until someone decides whether it is sticky.
     public var stopsPolling: Bool {
         switch self {
-        case .credentialsNotFound, .keychainDenied: true
-        default: false
+        case .credentialsNotFound, .keychainDenied, .credentialsUnreadable:
+            true
+        case .keychainUnavailable, .tokenExpired, .offline,
+             .authorizationRejected, .accessRefused, .rateLimited,
+             .unexpectedResponse:
+            false
         }
     }
 
@@ -43,6 +51,7 @@ public enum UsageFailure: Error, Sendable, Equatable {
         case .credentialsNotFound: "Claude Code credentials not found"
         case .keychainDenied: "Keychain access denied"
         case .keychainUnavailable: "Keychain unavailable"
+        case .credentialsUnreadable: "Claude Code credentials unreadable"
         case .tokenExpired: "Run Claude Code to refresh"
         case .offline: "Offline"
         case .authorizationRejected: "Authorization rejected"
@@ -84,7 +93,7 @@ public struct UsageSource: Sendable {
             case .notFound: return .failure(.credentialsNotFound)
             case .accessDenied: return .failure(.keychainDenied)
             case .unexpected: return .failure(.keychainUnavailable)
-            case .malformed: return .failure(.unexpectedResponse)
+            case .malformed: return .failure(.credentialsUnreadable)
             }
         } catch {
             return .failure(.unexpectedResponse)

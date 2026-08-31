@@ -99,7 +99,7 @@ struct UsageSourceTests {
         (CredentialError.notFound, UsageFailure.credentialsNotFound),
         (CredentialError.accessDenied, UsageFailure.keychainDenied),
         (CredentialError.unexpected(-25291), UsageFailure.keychainUnavailable),
-        (CredentialError.malformed, UsageFailure.unexpectedResponse),
+        (CredentialError.malformed, UsageFailure.credentialsUnreadable),
     ])
     func credentialErrors(error: CredentialError, expected: UsageFailure) async {
         let http = FakeHTTP(.response(status: 200, body: "{}", retryAfter: nil))
@@ -108,15 +108,21 @@ struct UsageSourceTests {
         #expect(http.callCount == 0)
     }
 
-    @Test("Only absence and denial stop the poller")
-    func stopsPolling() {
-        #expect(UsageFailure.credentialsNotFound.stopsPolling == true)
-        #expect(UsageFailure.keychainDenied.stopsPolling == true)
+    @Test("Whether a failure stops the poller, by case", arguments: [
+        (UsageFailure.credentialsNotFound, true),
+        (UsageFailure.keychainDenied, true),
+        (UsageFailure.credentialsUnreadable, true),
         // A transient keychain failure may clear on its own, so it must
         // keep polling rather than waiting for a manual retry.
-        #expect(UsageFailure.keychainUnavailable.stopsPolling == false)
-        #expect(UsageFailure.tokenExpired.stopsPolling == false)
-        #expect(UsageFailure.offline.stopsPolling == false)
-        #expect(UsageFailure.accessRefused.stopsPolling == false)
+        (UsageFailure.keychainUnavailable, false),
+        (UsageFailure.tokenExpired, false),
+        (UsageFailure.offline, false),
+        (UsageFailure.authorizationRejected, false),
+        (UsageFailure.accessRefused, false),
+        (UsageFailure.rateLimited(retryAfter: nil), false),
+        (UsageFailure.unexpectedResponse, false),
+    ])
+    func stopsPolling(failure: UsageFailure, expected: Bool) {
+        #expect(failure.stopsPolling == expected)
     }
 }
