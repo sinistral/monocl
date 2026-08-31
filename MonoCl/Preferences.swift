@@ -16,7 +16,12 @@ final class Preferences {
         static let staleAfter = "staleAfter"
     }
 
-    static let minimumRefreshInterval: TimeInterval = 15
+    /// The shortest cadence the user may choose, and the floor
+    /// `Refresher` applies to every request it makes.  Chosen for the
+    /// endpoint's sake rather than the display's: the windows being
+    /// reported span five hours and seven days, so a minute is already
+    /// finer resolution than the data has.
+    static let minimumRefreshInterval: TimeInterval = 60
 
     private let defaults: UserDefaults
 
@@ -25,8 +30,8 @@ final class Preferences {
         defaults.register(defaults: [
             Key.warning: 75.0,
             Key.critical: 90.0,
-            Key.refreshInterval: 60.0,
-            Key.staleAfter: 300.0,
+            Key.refreshInterval: 300.0,
+            Key.staleAfter: 900.0,
         ])
     }
 
@@ -54,8 +59,19 @@ final class Preferences {
         set { defaults.set(max(newValue, Self.minimumRefreshInterval), forKey: Key.refreshInterval) }
     }
 
+    /// Clamped on read to span at least two poll intervals, for the
+    /// same reason `criticalThreshold` is clamped on read: the invariant
+    /// then holds for every caller, and the user's own choice is masked
+    /// rather than overwritten, so shortening the interval brings it
+    /// back.
+    ///
+    /// The invariant itself is that one missed poll must not blank a
+    /// light.  A budget shorter than the cadence would expire every
+    /// reading before its replacement arrived, greying the lights
+    /// permanently; a budget equal to it would flap, since sleeps carry
+    /// tolerance and fetches take time.
     var staleAfter: TimeInterval {
-        get { defaults.double(forKey: Key.staleAfter) }
+        get { max(defaults.double(forKey: Key.staleAfter), refreshInterval * 2) }
         set { defaults.set(newValue, forKey: Key.staleAfter) }
     }
 

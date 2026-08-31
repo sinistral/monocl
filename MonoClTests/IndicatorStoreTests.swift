@@ -258,4 +258,35 @@ struct IndicatorStoreTests {
         // nominal (10%), platform warning.
         #expect(s.states == [.critical, .nominal, .warning])
     }
+
+    @Test("A rate limit is visible as such, with or without a Retry-After")
+    func rateLimitIsVisible() {
+        let store = IndicatorStore()
+        #expect(store.isUsageRateLimited == false)
+
+        store.apply(UsageOutcome.failure(.rateLimited(retryAfter: 3372)))
+        #expect(store.isUsageRateLimited == true)
+
+        // A 429 need not carry a parseable Retry-After.  MonoCl is no
+        // less rate limited for not being told how long.
+        store.apply(UsageOutcome.failure(.rateLimited(retryAfter: nil)))
+        #expect(store.isUsageRateLimited == true)
+    }
+
+    @Test("A reading clears the rate limit, and other failures never set it")
+    func rateLimitClears() {
+        let store = IndicatorStore()
+        store.apply(UsageOutcome.failure(.rateLimited(retryAfter: 60)))
+
+        store.apply(.samples(
+            session: UsageSample(percent: 10, resetsAt: Date().addingTimeInterval(3600)),
+            week: nil,
+            asOf: .now,
+            tokenExpiresAt: Date().addingTimeInterval(3600)
+        ))
+        #expect(store.isUsageRateLimited == false)
+
+        store.apply(UsageOutcome.failure(.offline))
+        #expect(store.isUsageRateLimited == false)
+    }
 }

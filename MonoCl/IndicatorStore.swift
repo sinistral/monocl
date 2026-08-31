@@ -20,6 +20,19 @@ final class IndicatorStore {
     private(set) var statusFailure: StatusFailure?
     private(set) var usagePollingStopped = false
 
+    /// Whether the endpoint last refused on rate-limit grounds.  Derived
+    /// from the failure rather than from the `Retry-After` deadline the
+    /// scheduler holds: a 429 need not carry a parseable header, and
+    /// MonoCl is no less rate limited for not being told how long.
+    ///
+    /// This is the same fact the Session and Week rows report, so the
+    /// menu cannot contradict itself by reading one and showing the
+    /// other.
+    var isUsageRateLimited: Bool {
+        if case .rateLimited = usageFailure { return true }
+        return false
+    }
+
     // Settings, applied on revalidate.
     var thresholds: Thresholds
     var staleAfter: TimeInterval
