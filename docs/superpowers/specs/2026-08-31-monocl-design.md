@@ -254,6 +254,17 @@ launch, menu open, `NSWorkspace.didWakeNotification`, and an explicit
 (`Task.sleep(for:tolerance:)`) so the OS can coalesce timers and an
 idle Mac stays idle.
 
+**Only the deliberate triggers reset the backoff.** "Refresh now" and
+wake clear the accumulated failure count; menu open does not, and skips
+the fetch entirely while a backoff is in progress. The distinction
+matters because opening the menu is incidental — it is how the user
+reaches Quit — and letting it zero the failure count would collapse a
+15-minute backoff to the base interval every time the menu was opened,
+against an endpoint this design has committed to backing off from on 403
+and to honouring `Retry-After` on 429. Menu open always re-renders,
+which costs nothing and is what keeps the displayed value honest; the
+fetch is the part that must respect the backoff.
+
 A reading is trusted only while all three hold; otherwise the light is
 `.unknown`:
 
