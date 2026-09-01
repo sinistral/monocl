@@ -58,9 +58,15 @@ the renderer that composes the three-dot image — so the change is a
 single `NSApp.userInterfaceLayoutDirection` check at that point. No
 data model, threshold rule, or tooltip logic depends on the order.
 
-**What to build:** reverse the dot sequence when the effective layout
-direction is right-to-left, and reverse the tooltip line order to
-match, so the text and the dots agree.
+**What to build:** move the platform dot to the left of the gauge
+glyph when the effective layout direction is right-to-left, and
+reverse the tooltip line order to match, so the text and the icon
+agree.
+
+The gauges themselves MUST NOT mirror. Their clockwise sweep is a
+clock convention rather than a reading-direction one, and clocks run
+clockwise in right-to-left locales too; reversing them would make the
+icon wrong rather than localized.
 
 **Trigger:** MonoCl being used in a right-to-left locale, or gaining
 any user other than its author.
