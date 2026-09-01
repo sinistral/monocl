@@ -17,8 +17,35 @@ public final class Engine {
     private let time: any TimeSource
     private let onChange: () -> Void
 
-    private var usageRefresher: Refresher?
-    private var statusRefresher: Refresher?
+    /// One instance each for the engine's whole life.  Rebuilding a
+    /// refresher would discard the instant of its last tick, which is
+    /// what `minimumSpacing` measures from, so a second `start()` would
+    /// be free to reach the endpoint immediately after the first.
+    ///
+    /// `lazy` because both tick closures capture `self`, which an
+    /// initialiser may not do before its last stored property is set.
+    /// Building them on first use rather than in `init` changes nothing
+    /// that matters: `Refresher.init` only stores closures, and every
+    /// path that observes one goes through the same properties.
+    private lazy var usageRefresher = Refresher(
+        interval: { [settings] in settings().refreshInterval },
+        minimumSpacing: EngineSettings.minimumRefreshInterval,
+        time: time,
+        retryAfter: { [weak self] in
+            guard let self else { return nil }
+            return self.rateLimitRemaining(now: self.time.now)
+        }
+    ) { [weak self] in
+        await self?.pollUsage() ?? false
+    }
+
+    private lazy var statusRefresher = Refresher(
+        interval: { [settings] in settings().refreshInterval },
+        minimumSpacing: EngineSettings.minimumRefreshInterval,
+        time: time
+    ) { [weak self] in
+        await self?.pollStatus() ?? false
+    }
 
     /// When the endpoint's last `Retry-After` elapses, held as an
     /// instant rather than a duration.  Scheduling only: what the MENU
@@ -56,30 +83,6 @@ public final class Engine {
     // MARK: - Lifecycle
 
     public func start() {
-        stop()
-
-        let usageRefresher = Refresher(
-            interval: { [settings] in settings().refreshInterval },
-            minimumSpacing: EngineSettings.minimumRefreshInterval,
-            time: time,
-            retryAfter: { [weak self] in
-                guard let self else { return nil }
-                return self.rateLimitRemaining(now: self.time.now)
-            }
-        ) { [weak self] in
-            await self?.pollUsage() ?? false
-        }
-
-        let statusRefresher = Refresher(
-            interval: { [settings] in settings().refreshInterval },
-            minimumSpacing: EngineSettings.minimumRefreshInterval,
-            time: time
-        ) { [weak self] in
-            await self?.pollStatus() ?? false
-        }
-
-        self.usageRefresher = usageRefresher
-        self.statusRefresher = statusRefresher
         usageRefresher.start()
         statusRefresher.start()
         refreshState()
@@ -89,10 +92,8 @@ public final class Engine {
     /// this — it only ever exits — but a test that leaves a poller
     /// running leaks it into the next test.
     public func stop() {
-        usageRefresher?.stop()
-        statusRefresher?.stop()
-        usageRefresher = nil
-        statusRefresher = nil
+        usageRefresher.stop()
+        statusRefresher.stop()
         expiryTask?.cancel()
         expiryTask = nil
     }
@@ -100,14 +101,14 @@ public final class Engine {
     // MARK: - Triggers
 
     public func refreshNow() {
-        usageRefresher?.refreshNow()
-        statusRefresher?.refreshNow()
+        usageRefresher.refreshNow()
+        statusRefresher.refreshNow()
         refreshState()
     }
 
     public func retryUsage() {
         store.retryUsage()
-        usageRefresher?.refreshNow()
+        usageRefresher.refreshNow()
         refreshState()
     }
 
@@ -119,8 +120,8 @@ public final class Engine {
         // Refreshed before the state is published, as at the other
         // deliberate call sites: the refreshes are what set the pending
         // state the UI displays.
-        usageRefresher?.refreshNow()
-        statusRefresher?.refreshNow()
+        usageRefresher.refreshNow()
+        statusRefresher.refreshNow()
         refreshState()
     }
 
@@ -155,8 +156,8 @@ public final class Engine {
         PendingRefresh.forMenu(
             rateLimited: store.isUsageRateLimited,
             refreshesOutstanding: [
-                usageRefresher?.isRefreshPending == true,
-                statusRefresher?.isRefreshPending == true,
+                usageRefresher.isRefreshPending,
+                statusRefresher.isRefreshPending,
             ]
         )
     }
@@ -217,10 +218,12 @@ public final class Engine {
         let now = time.now
         guard let expiry = store.nextTrustExpiry(now: now), expiry > now else { return }
         let wait = expiry.timeIntervalSince(now)
-        expiryTask = Task { [weak self] in
-            guard let self else { return }
-            await self.time.sleep(for: wait, tolerance: wait * 0.1)
-            guard !Task.isCancelled else { return }
+        // `self` is captured only after the sleep: `refreshState()`
+        // arms another one of these tasks, so a strong capture would let
+        // a released engine keep itself, and both pollers, alive.
+        expiryTask = Task { [weak self, time] in
+            await time.sleep(for: wait, tolerance: wait * 0.1)
+            guard let self, !Task.isCancelled else { return }
             self.refreshState()
         }
     }

@@ -20,7 +20,7 @@ import Indicators
 /// reacts to failures, so on its own it bounds nothing while everything
 /// succeeds.
 @MainActor
-public final class Refresher {
+final class Refresher {
     private var task: Task<Void, Never>?
     private var consecutiveFailures = 0
 
@@ -33,7 +33,7 @@ public final class Refresher {
     /// which is the same distinction: `start()` is only ever called for
     /// a fetch in its own right — launching, "Refresh now", waking —
     /// never for the next turn of the loop.
-    public private(set) var isRefreshPending = false
+    private(set) var isRefreshPending = false
 
     /// Survives `stop()` deliberately: it records when the endpoint was
     /// last touched, which a restart does not undo.
@@ -46,7 +46,7 @@ public final class Refresher {
     private let retryAfter: () -> TimeInterval?
 
     /// - Parameter tick: performs one fetch; returns whether it succeeded.
-    public init(
+    init(
         interval: @escaping () -> TimeInterval,
         minimumSpacing: TimeInterval,
         time: any TimeSource,
@@ -60,7 +60,7 @@ public final class Refresher {
         self.tick = tick
     }
 
-    public func start() {
+    func start() {
         stop()
         let firstWait = firstTickWait(now: time.now)
         isRefreshPending = true
@@ -116,7 +116,7 @@ public final class Refresher {
         return max(0, minimumSpacing - now.timeIntervalSince(lastTickAt))
     }
 
-    public func stop() {
+    func stop() {
         task?.cancel()
         task = nil
         isRefreshPending = false
@@ -134,7 +134,7 @@ public final class Refresher {
     /// "Offline".  The window is one fetch every five minutes and the
     /// alternative is tracking in-flight state a restart would race on,
     /// which is more machinery than the fault is worth.
-    public func refreshNow() {
+    func refreshNow() {
         guard !isRefreshPending else { return }
         consecutiveFailures = 0
         start()

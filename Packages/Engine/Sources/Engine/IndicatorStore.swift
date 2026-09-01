@@ -166,7 +166,7 @@ public final class IndicatorStore {
     /// cap, and `trustExpiry` does not itself consult `now`, so nothing
     /// here schedules a wake in the past for a reading that already
     /// lapsed.
-    public func nextTrustExpiry(now: Date) -> Date? {
+    func nextTrustExpiry(now: Date) -> Date? {
         var expiries: [Date] = []
         if session.state != .unknown, let sample = sessionSample, let asOf = usageAsOf {
             expiries.append(trustExpiry(usageTrustInputs(asOf: asOf, windowResetsAt: sample.resetsAt, now: now)))
