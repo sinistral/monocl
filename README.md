@@ -165,3 +165,10 @@ undone and why.
 ## License
 
 BSD 3-Clause. See [LICENSE](LICENSE).
+
+The one exception is the Claude flare embedded in `Icon/monocl.svg`,
+which is Anthropic's trademark rather than this project's work. It is
+reproduced unaltered to identify the service MonoCl reads, and the BSD
+grant does not extend to it — see the scope note at the foot of
+[LICENSE](LICENSE). It is a further reason this is a local build rather
+than something published.

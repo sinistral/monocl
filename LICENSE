@@ -26,3 +26,19 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+---
+
+Scope note: third-party trademarks
+
+The license above covers this repository's own source, including the
+monocle drawn in Icon/monocl.svg.
+
+It does NOT grant any right to the Claude flare embedded in that file
+(the `<path>` inside the `translate(...) scale(...)` group), which is
+Anthropic's trademark, reproduced unaltered and used here only to
+identify the service MonoCl reads.  Anthropic reserves its own rights
+in that mark; nothing in the BSD grant above conveys them, and a
+redistributor of this source acquires no license to the mark by
+receiving it.  Remove or replace that path in any derivative work
+whose use of the mark Anthropic has not agreed to.
