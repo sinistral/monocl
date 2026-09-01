@@ -97,10 +97,12 @@ struct EngineSuite {
         let fetchesBefore = http.callCount
         let changesBefore = changes
         await time.advance(by: 480)
-        // `advance` walks a fixed number of turns; the assertions below
-        // rest on the 840 usage tick having reached `ScriptedHTTP.get`
-        // within them, which this makes explicit rather than assumed.
-        await settle(until: { http.callCount == fetchesBefore + 1 })
+        // `advance` walks a fixed number of turns, and the last of the
+        // three re-derivations below depends on work that runs off the
+        // main actor, so waiting on the count itself is what makes the
+        // assertions exact rather than lucky.  Too few still fails here;
+        // too many still fails the equality that follows.
+        await settle(until: { changes >= changesBefore + 3 })
 
         #expect(engine.store.session.state == .unknown)
         #expect(engine.store.session.detail == "Offline")

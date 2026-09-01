@@ -2,6 +2,7 @@ import ClaudeUsage
 import Foundation
 import Indicators
 import PlatformStatus
+import Synchronization
 import Testing
 @testable import Engine
 
@@ -40,18 +41,43 @@ func awaitUsageOutcome(_ engine: Engine) async {
     await settle(until: { engine.store.session.detail != IndicatorStore.noReading })
 }
 
+/// A call counter shared across actors.
+///
+/// The fakes below are reached from `UsageSource.fetch` and
+/// `PlatformStatusSource.fetch`, both nonisolated, while the tests read
+/// the counts from the main actor — including inside `settle(until:)`,
+/// which spins on them.  Holding the count here rather than in a `var`
+/// is what lets those fakes be plainly `Sendable`, so the compiler
+/// checks the claim instead of being asked to take it on trust.
+final class Counter: Sendable {
+    private let value = Mutex(0)
+
+    /// The count before this call.
+    @discardableResult
+    func increment() -> Int {
+        value.withLock { count in
+            defer { count += 1 }
+            return count
+        }
+    }
+
+    var count: Int { value.withLock { $0 } }
+}
+
 /// A transport that answers from a script and counts its calls.
 ///
 /// The last entry repeats once the script runs out, so a test states
 /// only the answers it cares about and the loop can keep polling.
-final class ScriptedHTTP: HTTPFetching, @unchecked Sendable {
+final class ScriptedHTTP: HTTPFetching, Sendable {
     enum Answer {
         case response(status: Int, body: String, retryAfter: TimeInterval?)
         case offline
     }
 
     private let answers: [Answer]
-    private(set) var callCount = 0
+    private let calls = Counter()
+
+    var callCount: Int { calls.count }
 
     init(_ answers: [Answer]) {
         precondition(!answers.isEmpty, "a script needs at least one answer")
@@ -59,8 +85,7 @@ final class ScriptedHTTP: HTTPFetching, @unchecked Sendable {
     }
 
     func get(_ url: URL, headers: [String: String]) async throws -> HTTPResult {
-        let answer = answers[min(callCount, answers.count - 1)]
-        callCount += 1
+        let answer = answers[min(calls.increment(), answers.count - 1)]
         switch answer {
         case let .response(status, body, retryAfter):
             return HTTPResult(status: status, body: Data(body.utf8), retryAfter: retryAfter)
@@ -70,14 +95,16 @@ final class ScriptedHTTP: HTTPFetching, @unchecked Sendable {
     }
 }
 
-final class ScriptedStatusFetcher: StatusFetching, @unchecked Sendable {
+final class ScriptedStatusFetcher: StatusFetching, Sendable {
     private let body: String
-    private(set) var callCount = 0
+    private let calls = Counter()
+
+    var callCount: Int { calls.count }
 
     init(body: String = statusBody) { self.body = body }
 
     func get(_ url: URL) async throws -> (Data, Int) {
-        callCount += 1
+        calls.increment()
         return (Data(body.utf8), 200)
     }
 }
@@ -88,14 +115,16 @@ final class ScriptedStatusFetcher: StatusFetching, @unchecked Sendable {
 /// `UsageSource` reads the credential before it reaches the transport,
 /// so a poll that should not have happened at all still leaves the
 /// transport's own count at zero.
-final class StubCredentials: CredentialReading, @unchecked Sendable {
+final class StubCredentials: CredentialReading, Sendable {
     private let result: Result<StoredCredential, CredentialError>
-    private(set) var readCount = 0
+    private let reads = Counter()
+
+    var readCount: Int { reads.count }
 
     init(_ result: Result<StoredCredential, CredentialError>) { self.result = result }
 
     func read() throws -> StoredCredential {
-        readCount += 1
+        reads.increment()
         return try result.get()
     }
 }
