@@ -48,9 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func renderIcon() {
         guard let button = statusItem?.button else { return }
         let spec = iconSpec(
-            for: engine.store.states,
-            differentiateWithoutColor: NSWorkspace.shared
-                .accessibilityDisplayShouldDifferentiateWithoutColor
+            session: engine.store.session,
+            week: engine.store.week,
+            platform: engine.store.platform
         )
         button.image = MenuBarIcon.image(for: spec, appearance: button.effectiveAppearance)
         button.toolTip = TooltipComposer.tooltip(
@@ -100,15 +100,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.engine.systemDidWake() }
-        }
-
-        center.addObserver(
-            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
-            object: nil, queue: .main
-        ) { [weak self] _ in
-            // Nothing about the readings changed — only how they are
-            // drawn — so this never reaches the engine.
-            MainActor.assumeIsolated { self?.renderIcon() }
         }
     }
 

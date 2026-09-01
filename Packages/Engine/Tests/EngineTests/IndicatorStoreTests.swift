@@ -256,7 +256,9 @@ struct IndicatorStoreTests {
         // Three DISTINGUISHABLE states, so a transposition fails rather
         // than coincidentally matching: session critical (95%), week
         // nominal (10%), platform warning.
-        #expect(s.states == [.critical, .nominal, .warning])
+        #expect(s.session.state == .critical)
+        #expect(s.week.state == .nominal)
+        #expect(s.platform.state == .warning)
     }
 
     @Test("A rate limit is visible as such, with or without a Retry-After")

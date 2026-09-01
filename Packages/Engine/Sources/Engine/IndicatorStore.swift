@@ -180,9 +180,6 @@ public final class IndicatorStore {
         }
         return expiries.min()
     }
-
-    /// Convenience for the renderer: the three states in display order.
-    public var states: [IndicatorState] { [session.state, week.state, platform.state] }
 }
 
 extension IndicatorStore {
