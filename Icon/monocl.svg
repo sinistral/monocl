@@ -25,8 +25,12 @@
     </linearGradient>
   </defs>
 
-  <!-- The 824pt rounded square macOS reserves for the art, centred in
-       the 1024pt canvas: the system draws no tile of its own. -->
+  <!-- The tile is drawn here, not left to the system: an app icon
+       supplies its own background.  824pt centred in the 1024pt canvas
+       is the conventional macOS proportion, leaving the 100pt margin
+       the platform's icons carry.  Verified only by inspecting what
+       NSWorkspace returns for the built app, which is what Finder and
+       the Dock draw; macOS applies its own mask and shadow over this. -->
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)"/>
 
   <g transform="translate(42,23)">
