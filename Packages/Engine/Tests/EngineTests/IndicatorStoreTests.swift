@@ -3,7 +3,7 @@ import Indicators
 import ClaudeUsage
 import PlatformStatus
 import Testing
-@testable import MonoCl
+@testable import Engine
 
 @MainActor
 @Suite("Indicator store")

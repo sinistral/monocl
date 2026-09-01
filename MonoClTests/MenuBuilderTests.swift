@@ -1,6 +1,7 @@
 // MonoClTests/MenuBuilderTests.swift
 import AppKit
 import ClaudeUsage
+import Engine
 import Indicators
 import Testing
 @testable import MonoCl

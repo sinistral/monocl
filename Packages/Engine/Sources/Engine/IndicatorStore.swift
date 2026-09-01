@@ -11,14 +11,14 @@ import PlatformStatus
 /// lights immediately rather than at the next poll.
 @MainActor
 @Observable
-final class IndicatorStore {
+public final class IndicatorStore {
     // Displayed state.
-    private(set) var session: Reading
-    private(set) var week: Reading
-    private(set) var platform: Reading
-    private(set) var usageFailure: UsageFailure?
-    private(set) var statusFailure: StatusFailure?
-    private(set) var usagePollingStopped = false
+    public private(set) var session: Reading
+    public private(set) var week: Reading
+    public private(set) var platform: Reading
+    public private(set) var usageFailure: UsageFailure?
+    public private(set) var statusFailure: StatusFailure?
+    public private(set) var usagePollingStopped = false
 
     /// Whether the endpoint last refused on rate-limit grounds.  Derived
     /// from the failure rather than from the `Retry-After` deadline the
@@ -28,14 +28,14 @@ final class IndicatorStore {
     /// This is the same fact the Session and Week rows report, so the
     /// menu cannot contradict itself by reading one and showing the
     /// other.
-    var isUsageRateLimited: Bool {
+    public var isUsageRateLimited: Bool {
         if case .rateLimited = usageFailure { return true }
         return false
     }
 
     // Settings, applied on revalidate.
-    var thresholds: Thresholds
-    var staleAfter: TimeInterval
+    public var thresholds: Thresholds
+    public var staleAfter: TimeInterval
 
     // Raw samples.
     private var sessionSample: UsageSample?
@@ -45,7 +45,7 @@ final class IndicatorStore {
     private var statusSample: StatusSample?
     private var statusAsOf: Date?
 
-    init(thresholds: Thresholds = .default, staleAfter: TimeInterval = 300) {
+    public init(thresholds: Thresholds = .default, staleAfter: TimeInterval = 300) {
         self.thresholds = thresholds
         self.staleAfter = staleAfter
         let epoch = Date(timeIntervalSince1970: 0)
@@ -58,7 +58,7 @@ final class IndicatorStore {
     // nonisolated test suite, and a constant string carries no actor state.
     nonisolated static let noReading = "no recent reading"
 
-    func apply(_ outcome: UsageOutcome) {
+    public func apply(_ outcome: UsageOutcome) {
         switch outcome {
         case let .samples(session, week, asOf, tokenExpiresAt):
             sessionSample = session
@@ -81,7 +81,7 @@ final class IndicatorStore {
         }
     }
 
-    func apply(_ outcome: StatusOutcome) {
+    public func apply(_ outcome: StatusOutcome) {
         switch outcome {
         case let .sample(sample, asOf):
             statusSample = sample
@@ -98,7 +98,7 @@ final class IndicatorStore {
 
     /// Discards every sample.  Called on wake, when any held reading
     /// describes a moment that may be hours old.
-    func clearOnWake(now: Date) {
+    public func clearOnWake(now: Date) {
         sessionSample = nil
         weekSample = nil
         usageAsOf = nil
@@ -108,13 +108,13 @@ final class IndicatorStore {
         revalidate(now: now)
     }
 
-    func retryUsage() {
+    public func retryUsage() {
         usagePollingStopped = false
         usageFailure = nil
     }
 
     /// Recomputes the three readings from the current samples.
-    func revalidate(now: Date) {
+    public func revalidate(now: Date) {
         session = usageReading(sessionSample, now: now)
         week = usageReading(weekSample, now: now)
         platform = platformReading(now: now)
@@ -165,7 +165,7 @@ final class IndicatorStore {
     /// lands — the poll cadence stretches to the backoff cap, and
     /// `trustExpiry` does not itself consult `now`, so nothing here
     /// schedules a wake in the past for a reading that already lapsed.
-    func nextTrustExpiry(now: Date) -> Date? {
+    public func nextTrustExpiry(now: Date) -> Date? {
         var expiries: [Date] = []
         if session.state != .unknown, let sample = sessionSample, let asOf = usageAsOf {
             expiries.append(trustExpiry(usageTrustInputs(asOf: asOf, windowResetsAt: sample.resetsAt, now: now)))
@@ -180,10 +180,10 @@ final class IndicatorStore {
     }
 
     /// Convenience for the renderer: the three states in display order.
-    var states: [IndicatorState] { [session.state, week.state, platform.state] }
+    public var states: [IndicatorState] { [session.state, week.state, platform.state] }
 }
 
 extension IndicatorStore {
-    var sessionResetsAt: Date? { sessionSample?.resetsAt }
-    var weekResetsAt: Date? { weekSample?.resetsAt }
+    public var sessionResetsAt: Date? { sessionSample?.resetsAt }
+    public var weekResetsAt: Date? { weekSample?.resetsAt }
 }

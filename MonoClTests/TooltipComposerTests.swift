@@ -12,6 +12,11 @@ struct TooltipComposerTests {
     // expected strings, which is how the wrong literal got here.
     private let now = Date(timeIntervalSince1970: 1_788_177_600)
 
+    /// Matches `IndicatorStore.noReading`, which is internal to Engine.
+    /// The tooltip's contract is the text the user sees, so pinning the
+    /// literal here is the assertion, not a workaround.
+    private let noReading = "no recent reading"
+
     private func reading(
         _ state: IndicatorState,
         _ detail: String,
@@ -44,8 +49,8 @@ struct TooltipComposerTests {
     func showsResetTime() {
         let text = TooltipComposer.tooltip(
             session: reading(.nominal, "12%"),
-            week: reading(.unknown, IndicatorStore.noReading),
-            platform: reading(.unknown, IndicatorStore.noReading),
+            week: reading(.unknown, noReading),
+            platform: reading(.unknown, noReading),
             sessionResetsAt: now.addingTimeInterval(3600),
             weekResetsAt: nil,
             timeZone: TimeZone(identifier: "UTC")!,
@@ -59,7 +64,7 @@ struct TooltipComposerTests {
     @Test("A reset time beyond 12 hours shows its weekday")
     func showsWeekdayBeyond12Hours() {
         let text = TooltipComposer.tooltip(
-            session: reading(.unknown, IndicatorStore.noReading),
+            session: reading(.unknown, noReading),
             week: reading(.nominal, "20%"),
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: nil,
@@ -75,7 +80,7 @@ struct TooltipComposerTests {
     @Test("An unknown reading shows an em dash and no percentage")
     func unknownLine() {
         let text = TooltipComposer.tooltip(
-            session: reading(.unknown, IndicatorStore.noReading),
+            session: reading(.unknown, noReading),
             week: reading(.nominal, "20%"),
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: nil,
