@@ -3,10 +3,26 @@ import Indicators
 
 /// Draws the menu bar image from a specification.
 ///
-/// The appearance is passed in rather than read from `NSApp`: the menu
-/// bar's effective appearance differs from the application's, and using
-/// the wrong one produces a glyph that is invisible against certain
-/// wallpapers.  Callers pass `statusItem.button!.effectiveAppearance`.
+/// Colours resolve against the ambient appearance
+/// ---
+///
+/// The drawing handler names dynamic colours (`.labelColor` and the
+/// system tints) and leaves the appearance they resolve against to
+/// whoever is drawing.  That is deliberate, and it settles two things
+/// at once.
+///
+/// AppKit sets the current drawing appearance to the hosting view's
+/// effective appearance before it draws, so a glyph inside the status
+/// item resolves against the menu bar's appearance rather than the
+/// application's — the two differ, and the wrong one produces a glyph
+/// that is invisible against certain wallpapers.
+///
+/// AppKit also re-invokes the handler when that effective appearance
+/// changes, so the image follows a light-to-dark switch on its own.
+/// Resolving the colours against an appearance captured when the image
+/// was built defeats exactly that: the redraw happens, but repaints the
+/// old colours.  A non-template glyph is then stranded — and since most
+/// of it is 0.18-alpha track, stranded means invisible.
 @MainActor
 enum MenuBarIcon {
     private static let inset: CGFloat = 2
@@ -44,17 +60,15 @@ enum MenuBarIcon {
         90 - percent / 100 * 360
     }
 
-    static func image(for spec: IconSpec, appearance: NSAppearance) -> NSImage {
+    static func image(for spec: IconSpec) -> NSImage {
         let size = NSSize(width: width, height: NSStatusBar.system.thickness)
 
         let image = NSImage(size: size, flipped: false) { rect in
-            appearance.performAsCurrentDrawingAppearance {
-                let centre = NSPoint(x: inset + glyphDiameter / 2, y: rect.midY)
-                draw(ring: spec.session, at: centre)
-                draw(pie: spec.week, at: centre)
-                draw(dot: spec.platform,
-                     at: NSPoint(x: centre.x + glyphDiameter / 2 + platformGap, y: rect.midY))
-            }
+            let centre = NSPoint(x: inset + glyphDiameter / 2, y: rect.midY)
+            draw(ring: spec.session, at: centre)
+            draw(pie: spec.week, at: centre)
+            draw(dot: spec.platform,
+                 at: NSPoint(x: centre.x + glyphDiameter / 2 + platformGap, y: rect.midY))
             return true
         }
         image.isTemplate = spec.isTemplate

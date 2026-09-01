@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             week: engine.store.week,
             platform: engine.store.platform
         )
-        button.image = MenuBarIcon.image(for: spec, appearance: button.effectiveAppearance)
+        button.image = MenuBarIcon.image(for: spec)
         button.toolTip = TooltipComposer.tooltip(
             session: engine.store.session,
             week: engine.store.week,

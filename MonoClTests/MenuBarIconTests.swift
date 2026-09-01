@@ -23,7 +23,7 @@ struct MenuBarIconTests {
             week: reading(week, percent: weekPercent),
             platform: reading(platform)
         )
-        return MenuBarIcon.image(for: spec, appearance: appearance)
+        return MenuBarIcon.image(for: spec)
     }
 
     @Test("The template flag reaches the image")
@@ -84,8 +84,13 @@ struct MenuBarIconTests {
     private let glyphCentreX = 12.0
 
     private func bitmap(of icon: NSImage) throws -> NSBitmapImageRep {
-        let data = try #require(icon.tiffRepresentation)
-        let rep = try #require(NSBitmapImageRep(data: data))
+        // The renderer resolves its colours against whatever appearance
+        // is current when the image is drawn, so rasterising has to name
+        // one for the samples below to be deterministic.
+        var data: Data?
+        appearance.performAsCurrentDrawingAppearance { data = icon.tiffRepresentation }
+        let tiff = try #require(data)
+        let rep = try #require(NSBitmapImageRep(data: tiff))
         // One pixel per point, so that the sample coordinates below —
         // which are all in points — address the pixels they name.
         #expect(rep.pixelsWide == 34)
@@ -159,5 +164,56 @@ struct MenuBarIconTests {
         #expect(try alpha(rep, atPercent: 50, radius: 8.5) > 0.9)
         #expect(try faintestAlpha(rep, aroundPercent: 73, radius: 8.5) < 0.7)
         #expect(try faintestAlpha(rep, aroundPercent: 88, radius: 8.5) < 0.7)
+    }
+
+    // MARK: - Appearance
+
+    /// Draws an already-built image into a fresh 1x bitmap under a
+    /// named appearance, and reads one pixel of it.
+    ///
+    /// Drawing the *same* image twice is the whole point: it is what
+    /// AppKit does to the status item's image when the menu bar's
+    /// effective appearance changes, and the only way to observe
+    /// whether the second draw picks the new appearance's colours up.
+    private func redraw(_ icon: NSImage, under named: NSAppearance.Name,
+                        atPercent percent: Double, radius: Double) throws -> NSColor {
+        let width = Int(icon.size.width)
+        let height = Int(icon.size.height)
+        let rep = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        let context = try #require(NSGraphicsContext(bitmapImageRep: rep))
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        try #require(NSAppearance(named: named)).performAsCurrentDrawingAppearance {
+            icon.draw(in: NSRect(origin: .zero, size: icon.size))
+        }
+        NSGraphicsContext.restoreGraphicsState()
+
+        let radians = (90 - percent / 100 * 360) * .pi / 180
+        let x = glyphCentreX + cos(radians) * radius
+        let y = Double(height) / 2 + sin(radians) * radius
+        return try #require(rep.colorAt(x: Int(x.rounded(.down)),
+                                        y: height - 1 - Int(y.rounded(.down))))
+            .usingColorSpace(.deviceRGB)!
+    }
+
+    @Test("Redrawing one image under a new appearance repaints it in that appearance's colours")
+    func redrawFollowsTheAppearance() throws {
+        // A critical session makes the image non-template, which is the
+        // case that bites: a template image is tinted by the system and
+        // follows the menu bar for free, whereas this one is painted in
+        // colours the renderer resolved itself.  The sample is the
+        // week's monochrome wedge, drawn in opaque `labelColor` — near
+        // black under Aqua and near white under Dark Aqua.
+        let icon = image(session: .critical, sessionPercent: 94,
+                         week: .nominal, weekPercent: 30)
+        #expect(icon.isTemplate == false)
+
+        let light = try redraw(icon, under: .aqua, atPercent: 25, radius: 3)
+        let dark = try redraw(icon, under: .darkAqua, atPercent: 25, radius: 3)
+        #expect(light.redComponent < 0.2)
+        #expect(dark.redComponent > 0.8)
     }
 }
