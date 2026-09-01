@@ -31,20 +31,27 @@ private final class TickSpy {
 /// Holds a tick open until the test lets it finish, so "a fetch is
 /// in flight" is a fact the test controls rather than a duration it
 /// hopes is long enough.
+///
+/// Holds every waiter rather than one.  Keeping a single continuation
+/// would let a second concurrent `wait()` overwrite the first, whose
+/// task would then never resume: the failure surfaces as a hang and a
+/// leaked `CheckedContinuation` rather than as a test failure, which is
+/// a poor trade for a one-line difference.
 @MainActor
 private final class Gate {
-    private var continuation: CheckedContinuation<Void, Never>?
+    private var continuations: [CheckedContinuation<Void, Never>] = []
     private var isOpen = false
 
     func wait() async {
         guard !isOpen else { return }
-        await withCheckedContinuation { self.continuation = $0 }
+        await withCheckedContinuation { self.continuations.append($0) }
     }
 
     func open() {
         isOpen = true
-        continuation?.resume()
-        continuation = nil
+        let waiting = continuations
+        continuations = []
+        waiting.forEach { $0.resume() }
     }
 }
 
