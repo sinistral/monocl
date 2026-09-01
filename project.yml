@@ -34,6 +34,7 @@ targets:
         # Menu bar only: no Dock icon, no main window.
         LSUIElement: true
         CFBundleName: MonoCl
+        CFBundleIconName: AppIcon
         CFBundleDisplayName: MonoCl
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -46,6 +47,7 @@ targets:
         # another app's keychain item, which is the whole feature.
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_APP_SANDBOX: NO
         ENABLE_HARDENED_RUNTIME: NO
     dependencies:
