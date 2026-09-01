@@ -193,8 +193,12 @@ struct RefresherTests {
 
     // MARK: - Minimum spacing
 
-    /// The shipping floor between requests, so the spacing tests measure
-    /// the rate the app actually enforces.
+    /// Comfortably longer than the 60-second cadence the two cadence
+    /// cases below pair it with, so the single tick they observe can
+    /// only be the floor's doing.  Deliberately not the app's shipping
+    /// floor of 60: there the cadence is the longer of the two and the
+    /// floor never bites, which is the arrangement these cases exist to
+    /// rule out.
     private var spacing: TimeInterval { 300 }
 
     @Test("A burst of triggers produces one tick, whichever of the two rules discards each one")
