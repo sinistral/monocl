@@ -36,7 +36,7 @@ enum MenuBarIcon {
     private static let platformRingRadius: CGFloat = 3
     private static let platformDiscRadius: CGFloat = 4
 
-    static let width: CGFloat =
+    private static let width: CGFloat =
         inset + glyphDiameter + platformGap + platformDiscRadius + inset
 
     /// Where the breach slots are cut, as `NSBezierPath` measures
@@ -119,6 +119,9 @@ enum MenuBarIcon {
     /// leaves behind.
     private static func cut(_ count: Int, at centre: NSPoint,
                             from innerRadius: CGFloat, to outerRadius: CGFloat) {
+        // `cut` is only called from inside the `NSImage` drawing handler in
+        // `image(for:)`, where AppKit guarantees a current context, so the
+        // `context` half of this guard is unreachable, not a fallback path.
         guard count > 0, let context = NSGraphicsContext.current else { return }
         context.saveGraphicsState()
         context.compositingOperation = .clear

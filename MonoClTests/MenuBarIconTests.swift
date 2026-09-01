@@ -84,9 +84,11 @@ struct MenuBarIconTests {
     private let glyphCentreX = 12.0
 
     private func bitmap(of icon: NSImage) throws -> NSBitmapImageRep {
-        // The renderer resolves its colours against whatever appearance
-        // is current when the image is drawn, so rasterising has to name
-        // one for the samples below to be deterministic.
+        // The samples below all read alphaComponent, and every colour the
+        // renderer uses has the same alpha under Aqua and Dark Aqua, so
+        // this pinning is not what makes them deterministic today. It is
+        // insurance: a sample added later that reads hue instead would
+        // silently depend on the ambient appearance without it.
         var data: Data?
         appearance.performAsCurrentDrawingAppearance { data = icon.tiffRepresentation }
         let tiff = try #require(data)
