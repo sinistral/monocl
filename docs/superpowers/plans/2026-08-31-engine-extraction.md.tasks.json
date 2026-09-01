@@ -1,0 +1,66 @@
+{
+  "planPath": "docs/superpowers/plans/2026-08-31-engine-extraction.md",
+  "tasks": [
+    {
+      "id": 0,
+      "subject": "Task 1: Engine package and TimeSource seam",
+      "status": "pending",
+      "description": "**Goal:** A new Packages/Engine package containing TimeSource, SystemTimeSource, and a tested virtual TestTimeSource, wired into the Xcode project with no consumers yet.\n\n**Files:**\n- Create: `Packages/Engine/Package.swift`\n- Create: `Packages/Engine/Sources/Engine/TimeSource.swift`\n- Create: `Packages/Engine/Tests/EngineTests/TestTimeSource.swift`\n- Create: `Packages/Engine/Tests/EngineTests/TestTimeSourceTests.swift`\n- Modify: `project.yml`\n\n**Acceptance Criteria:**\n- [ ] `swift build` and `swift test` succeed in `Packages/Engine`\n- [ ] TestTimeSource wakes sleepers in deadline order, each observing `now` equal to its own deadline\n- [ ] A cancelled sleep on TestTimeSource returns without any advance\n- [ ] `xcodebuild -scheme MonoCl build` still succeeds after regenerating the project\n\n**Verify:** `cd Packages/Engine && swift test > \"$SCRATCH/engine-task1.log\" 2>&1; echo \"exit=$?\"` \u2192 exit=0\n\n```json:metadata\n{\"files\": [\"Packages/Engine/Package.swift\", \"Packages/Engine/Sources/Engine/TimeSource.swift\", \"Packages/Engine/Tests/EngineTests/TestTimeSource.swift\", \"Packages/Engine/Tests/EngineTests/TestTimeSourceTests.swift\", \"project.yml\"], \"verifyCommand\": \"cd Packages/Engine && swift test > \\\"$SCRATCH/engine-task1.log\\\" 2>&1; echo \\\"exit=$?\\\"\", \"acceptanceCriteria\": [\"swift test passes in Packages/Engine\", \"sleepers wake in deadline order at their own deadline\", \"a cancelled sleep returns without advancing\", \"xcodebuild build succeeds after xcodegen\"], \"modelTier\": \"standard\"}\n```"
+    },
+    {
+      "id": 1,
+      "subject": "Task 2: Move Refresher onto the clock",
+      "status": "pending",
+      "description": "**Goal:** Refresher lives in Engine, takes a TimeSource, and its entire suite passes against the virtual clock with no real waiting.\n\n**Files:**\n- Create: `Packages/Engine/Sources/Engine/Refresher.swift` (moved from `MonoCl/Refresher.swift`)\n- Create: `Packages/Engine/Tests/EngineTests/RefresherTests.swift` (moved from `MonoClTests/RefresherTests.swift`)\n- Delete: `MonoCl/Refresher.swift`, `MonoClTests/RefresherTests.swift`\n- Modify: `MonoCl/AppDelegate.swift` (pass `time:`)\n\n**Acceptance Criteria:**\n- [ ] All fifteen original cases are present, asserting the same behaviour\n- [ ] The new test file contains no `Task.sleep` and no `Date.now`; waiting is `await time.advance(by:)` and `await waitForTicks(_:from:)`\n- [ ] `swift test` in Packages/Engine passes\n- [ ] `xcodebuild -scheme MonoCl test` passes\n\n**Verify:** `cd Packages/Engine && swift test --filter RefresherTests > \"$SCRATCH/refresher.log\" 2>&1; echo \"exit=$?\"` \u2192 exit=0\n\n```json:metadata\n{\"files\": [\"Packages/Engine/Sources/Engine/Refresher.swift\", \"Packages/Engine/Tests/EngineTests/RefresherTests.swift\", \"MonoCl/AppDelegate.swift\"], \"verifyCommand\": \"cd Packages/Engine && swift test --filter RefresherTests > \\\"$SCRATCH/refresher.log\\\" 2>&1; echo \\\"exit=$?\\\"\", \"acceptanceCriteria\": [\"all fifteen cases present and passing\", \"no Task.sleep or Date.now in the ported tests\", \"swift test passes\", \"xcodebuild test passes\"], \"modelTier\": \"frontier\"}\n```",
+      "blockedBy": [
+        0
+      ]
+    },
+    {
+      "id": 2,
+      "subject": "Task 3: Move IndicatorStore and PendingRefresh",
+      "status": "pending",
+      "description": "**Goal:** The store and the refresh-row policy live in Engine, with their tests, and the app builds against their public API.\n\n**Files:**\n- Create: `Packages/Engine/Sources/Engine/IndicatorStore.swift` (moved)\n- Create: `Packages/Engine/Sources/Engine/PendingRefresh.swift` (extracted from `MonoCl/MenuBuilder.swift`)\n- Create: `Packages/Engine/Tests/EngineTests/IndicatorStoreTests.swift` (moved)\n- Modify: `MonoCl/MenuBuilder.swift`, `MonoClTests/MenuBuilderTests.swift`, `MonoClTests/MenuBarIconTests.swift`, `MonoClTests/TooltipComposerTests.swift`\n- Delete: `MonoCl/IndicatorStore.swift`, `MonoClTests/IndicatorStoreTests.swift`\n\n**Acceptance Criteria:**\n- [ ] IndicatorStore's public API is exactly the projections, settables and methods listed in the plan\n- [ ] PendingRefresh and forMenu(rateLimited:refreshesOutstanding:) are public and no longer declared in an AppKit-importing file\n- [ ] MenuBuilderTests builds its stores through the public API\n- [ ] Both suites pass\n\n**Verify:** `cd Packages/Engine && swift test > \"$SCRATCH/engine-task3.log\" 2>&1; echo \"exit=$?\"` \u2192 exit=0\n\n```json:metadata\n{\"files\": [\"Packages/Engine/Sources/Engine/IndicatorStore.swift\", \"Packages/Engine/Sources/Engine/PendingRefresh.swift\", \"Packages/Engine/Tests/EngineTests/IndicatorStoreTests.swift\", \"MonoCl/MenuBuilder.swift\", \"MonoClTests/MenuBuilderTests.swift\", \"MonoClTests/TooltipComposerTests.swift\"], \"verifyCommand\": \"cd Packages/Engine && swift test > \\\"$SCRATCH/engine-task3.log\\\" 2>&1; echo \\\"exit=$?\\\"\", \"acceptanceCriteria\": [\"public API matches the plan's list\", \"PendingRefresh public and out of the AppKit file\", \"app tests use the public API\", \"both suites pass\"], \"modelTier\": \"standard\"}\n```",
+      "blockedBy": [
+        1
+      ]
+    },
+    {
+      "id": 3,
+      "subject": "Task 4: Extract the Engine",
+      "status": "pending",
+      "description": "**Goal:** Engine owns the poll cycle, the Retry-After deadline, the expiry timer, wake handling and the pending-refresh policy; AppDelegate only builds AppKit objects and forwards events.\n\n**Files:**\n- Create: `Packages/Engine/Sources/Engine/EngineSettings.swift`\n- Create: `Packages/Engine/Sources/Engine/Engine.swift`\n- Modify: `MonoCl/AppDelegate.swift` (rewritten)\n\n**Acceptance Criteria:**\n- [ ] AppDelegate contains no Refresher, no rateLimitedUntil, no expiryTask, no pollUsage/pollStatus, and no PendingRefresh.forMenu call\n- [ ] Engine exposes exactly store, start(), stop(), refreshNow(), retryUsage(), settingsChanged(), systemDidWake(), menuWillOpen(), pendingRefresh\n- [ ] Both refreshers share one TimeSource instance\n- [ ] The app builds and both suites pass\n- [ ] A launched app still shows three dots and a menu whose rows read as before\n\n**Verify:** `xcodebuild -scheme MonoCl -destination 'platform=macOS' test > \"$SCRATCH/app-task4.log\" 2>&1; echo \"exit=$?\"` \u2192 exit=0\n\n```json:metadata\n{\"files\": [\"Packages/Engine/Sources/Engine/EngineSettings.swift\", \"Packages/Engine/Sources/Engine/Engine.swift\", \"MonoCl/AppDelegate.swift\"], \"verifyCommand\": \"xcodebuild -scheme MonoCl -destination 'platform=macOS' test > \\\"$SCRATCH/app-task4.log\\\" 2>&1; echo \\\"exit=$?\\\"\", \"acceptanceCriteria\": [\"AppDelegate holds no orchestration state\", \"Engine's surface matches the plan\", \"one shared TimeSource\", \"both suites pass\"], \"modelTier\": \"frontier\"}\n```",
+      "blockedBy": [
+        2
+      ]
+    },
+    {
+      "id": 4,
+      "subject": "Task 5: Cover the compositions",
+      "status": "pending",
+      "description": "**Goal:** Six engine tests, each pinning a behaviour previously verified only by watching a menu bar.\n\n**Files:**\n- Create: `Packages/Engine/Tests/EngineTests/Fakes.swift`\n- Create: `Packages/Engine/Tests/EngineTests/EngineTests.swift`\n\n**Acceptance Criteria:**\n- [ ] All six tests pass, and each fails when the behaviour it names is removed (falsification table in the plan)\n- [ ] No test waits on wall-clock time; all timing is `await time.advance(by:)`\n- [ ] Every test stops its engine before returning\n- [ ] Assertions state the expected value, never the absence of an unwanted one\n\n**Verify:** `cd Packages/Engine && swift test --filter EngineTests > \"$SCRATCH/engine-tests.log\" 2>&1; echo \"exit=$?\"` \u2192 exit=0\n\n```json:metadata\n{\"files\": [\"Packages/Engine/Tests/EngineTests/Fakes.swift\", \"Packages/Engine/Tests/EngineTests/EngineTests.swift\"], \"verifyCommand\": \"cd Packages/Engine && swift test --filter EngineTests > \\\"$SCRATCH/engine-tests.log\\\" 2>&1; echo \\\"exit=$?\\\"\", \"acceptanceCriteria\": [\"six tests pass\", \"each fails when its behaviour is broken, with the failing run captured\", \"no wall-clock waiting\", \"every test stops its engine\"], \"modelTier\": \"frontier\"}\n```",
+      "blockedBy": [
+        3
+      ]
+    },
+    {
+      "id": 5,
+      "subject": "Task 6: Re-home the refresh floor",
+      "status": "pending",
+      "description": "**Goal:** No duplicate declaration of the minimum interval, and no comment left describing code that now lives elsewhere.\n\n**Files:**\n- Modify: `MonoCl/Preferences.swift`\n- Modify: `MonoClTests/PreferencesTests.swift` (only if it names Preferences.minimumRefreshInterval)\n- Modify: `DEFERRED.md`\n\n**Acceptance Criteria:**\n- [ ] minimumRefreshInterval is declared once, on EngineSettings\n- [ ] Preferences clamps against EngineSettings.minimumRefreshInterval\n- [ ] `grep -rn \"minimumRefreshInterval\" MonoCl MonoClTests` shows only uses, no second declaration\n- [ ] Both suites pass\n\n**Verify:** `grep -rn \"static let minimumRefreshInterval\" MonoCl Packages | wc -l` \u2192 1\n\n```json:metadata\n{\"files\": [\"MonoCl/Preferences.swift\", \"DEFERRED.md\"], \"verifyCommand\": \"grep -rn \\\"static let minimumRefreshInterval\\\" MonoCl Packages | wc -l\", \"acceptanceCriteria\": [\"one declaration, on EngineSettings\", \"Preferences clamps against it\", \"both suites pass\"], \"modelTier\": \"mechanical\"}\n```",
+      "blockedBy": [
+        4
+      ]
+    },
+    {
+      "id": 6,
+      "subject": "Task 7: Verify against the real app",
+      "status": "pending",
+      "description": "**Goal:** Confirm the running app behaves exactly as it did before the extraction, on the axes no headless test covers.\n\n> **USER-ORDERED GATE \u2014 NON-SKIPPABLE.** This task was requested by the user in the current conversation. It MUST NOT be closed by walking around it, by declaring it \"verified inline\", or by substituting a cheaper check. Close only after every item in `acceptanceCriteria` has been re-validated independently, with output captured.\n\n**Files:**\n- Create: `docs/superpowers/plans/2026-08-31-engine-extraction.verification.md`\n\n**Acceptance Criteria:**\n- [ ] The built app launches and shows three dots, with the two usage dots reading real percentages that match /usage in Claude Code to within one poll interval\n- [ ] The Platform row matches the headline on status.claude.com\n- [ ] Over ten minutes at the default 300 s cadence, the usage endpoint is requested no more than three times \u2014 confirmed from log show, not inferred\n- [ ] Lowering the warning threshold below the current session percentage turns the session dot amber immediately, without a fetch\n- [ ] Sleeping and waking the Mac blanks the dots until the next successful fetch\n- [ ] No access token appears in `log show --predicate 'subsystem == \"net.sinistral.monocl\"'`\n- [ ] Observations are recorded in the verification document\n\n**Verify:** `log show --last 10m --predicate 'subsystem == \"net.sinistral.monocl\"' > \"$SCRATCH/monocl-log.txt\" 2>&1; grep -c -i -E 'sk-ant|Bearer|accessToken' \"$SCRATCH/monocl-log.txt\"` \u2192 0\n\n```json:metadata\n{\"files\": [\"docs/superpowers/plans/2026-08-31-engine-extraction.verification.md\"], \"verifyCommand\": \"log show --last 10m --predicate 'subsystem == \\\"net.sinistral.monocl\\\"' > \\\"$SCRATCH/monocl-log.txt\\\" 2>&1; grep -c -i -E 'sk-ant|Bearer|accessToken' \\\"$SCRATCH/monocl-log.txt\\\"\", \"acceptanceCriteria\": [\"three dots, usage percentages match /usage within one poll interval\", \"Platform row matches status.claude.com headline\", \"no more than three usage requests in ten minutes, from log show\", \"threshold edit turns the dot amber immediately without a fetch\", \"sleep and wake blanks the dots until the next successful fetch\", \"no access token in the log\", \"observations recorded in the verification document\"], \"modelTier\": \"frontier\", \"userGate\": true, \"tags\": [\"user-gate\"], \"requiresUserSpecification\": false, \"gateScope\": \"all\", \"failurePolicy\": \"halt\"}\n```",
+      "blockedBy": [
+        5
+      ]
+    }
+  ],
+  "lastUpdated": "2026-08-31T19:13:04-06:00"
+}
