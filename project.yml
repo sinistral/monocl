@@ -19,6 +19,8 @@ packages:
     path: Packages/ClaudeUsage
   PlatformStatus:
     path: Packages/PlatformStatus
+  Engine:
+    path: Packages/Engine
 
 targets:
   MonoCl:
@@ -50,6 +52,7 @@ targets:
       - package: Indicators
       - package: ClaudeUsage
       - package: PlatformStatus
+      - package: Engine
 
   MonoClTests:
     type: bundle.unit-test
