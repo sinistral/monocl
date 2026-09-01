@@ -52,6 +52,15 @@ no menu bar width. Height continues to come from
 built with `NSImage(size:flipped:drawingHandler:)` so it redraws on
 appearance changes.
 
+That redraw depends on the handler resolving its colors against
+whichever appearance is *ambient* when AppKit invokes it, never one
+captured ahead of time. Inside the status item's button, the ambient
+appearance during drawing is the menu bar's own — the same choice this
+design already insists on when it says the glyph must read against the
+menu bar rather than the app. Capturing an appearance and forcing it
+back with `performAsCurrentDrawingAppearance` silently defeats that
+redraw; see the doc comment on `MenuBarIcon` in `MonoCl/MenuBarIcon.swift`.
+
 ### Why concentric, and why these two forms
 
 Nesting two gauges only works if they differ in kind. Two concentric
@@ -118,11 +127,12 @@ reasons for its specific shape:
 - **They sit a few degrees *inside* the thresholds** — around the 73%
   and 88% angles rather than 75% and 90%. At the 75% angle a
   just-breached 76% gauge leaves a sliver of arc beyond the cut of
-  about 3.6°, well under a pixel at drawn size, so the slot reads as
-  the arc simply ending rather than as a mark within it. Just-breached
-  is when the cue matters most and is where the literal placement is
-  weakest. The mark is therefore a severity counter, not a threshold
-  indicator; the arc length already reports the value.
+  about 3.6° — roughly 0.53 pt of arc at the ring's 8.5 pt centreline
+  radius, about one device pixel on a Retina display — so the slot
+  reads as the arc simply ending rather than as a mark within it.
+  Just-breached is when the cue matters most and is where the literal
+  placement is weakest. The mark is therefore a severity counter, not a
+  threshold indicator; the arc length already reports the value.
 - **A notch at twelve o'clock does not work**, though it is the obvious
   first idea. At 94% the sweep already stops 21.6° short of twelve, so
   the cue would be confounded with the value it is meant to qualify,

@@ -433,6 +433,11 @@ before the replacement does.
 
 ## Rendering
 
+> **Superseded** by
+> `docs/superpowers/specs/2026-09-01-menu-bar-gauges-design.md`. The
+> three dots described below were replaced by two percentage gauges
+> and a platform dot. Everything above this section still holds.
+
 One `NSStatusItem`, one image, three dots, fixed order: session,
 weekly, platform.
 
@@ -460,6 +465,10 @@ system behavior for free and accepts explicit drawing in the rare case,
 where a fixed color is what is wanted anyway.
 
 ### Color is not the only encoder
+
+> **Superseded.** The shape table below describes the three-dot icon.
+> The gauges encode severity as a count of cut slots instead, and do
+> not consult the system setting — see the successor spec for why.
 
 Amber against red is the most confusable pair for viewers with color
 vision deficiency, and the entire signal rides on it. MonoCl honors the
