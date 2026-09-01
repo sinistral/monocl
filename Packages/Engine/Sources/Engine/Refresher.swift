@@ -1,14 +1,12 @@
 // Packages/Engine/Sources/Engine/Refresher.swift
-import ClaudeUsage
 import Foundation
 import Indicators
-import PlatformStatus
 
 /// Drives one source on a timer.
 ///
-/// `Task.sleep` carries a tolerance so the system can coalesce these
-/// wake-ups with other timers, per Apple's energy guidance — an idle Mac
-/// should stay idle.
+/// Every wait is handed to the `TimeSource` with a tolerance so the
+/// system can coalesce these wake-ups with other timers, per Apple's
+/// energy guidance — an idle Mac should stay idle.
 ///
 /// Request rate is a property of this object, not of its callers
 /// ---
@@ -28,8 +26,8 @@ public final class Refresher {
 
     /// Whether a requested refresh has yet to land.  One fact, not a
     /// reason: WHY a refresh cannot happen is the rate limit, and the
-    /// rate limit is known to `AppDelegate`, which owns the deadline.
-    /// This object only schedules.
+    /// rate limit is known to `Engine`, which owns the deadline.  This
+    /// object only schedules.
     ///
     /// Every `start()` sets it and the ordinary cadence never does,
     /// which is the same distinction: `start()` is only ever called for
