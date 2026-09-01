@@ -160,11 +160,12 @@ public final class IndicatorStore {
     }
 
     /// The earliest instant any CURRENTLY TRUSTED reading stops being
-    /// trusted, or nil if none is.  AppDelegate arms a single timer for
-    /// this so a retained reading revalidates before its next poll
-    /// lands — the poll cadence stretches to the backoff cap, and
-    /// `trustExpiry` does not itself consult `now`, so nothing here
-    /// schedules a wake in the past for a reading that already lapsed.
+    /// trusted, or nil if none is.  `Engine.armExpiryTimer()` arms a
+    /// single timer for this so a retained reading revalidates before
+    /// its next poll lands — the poll cadence stretches to the backoff
+    /// cap, and `trustExpiry` does not itself consult `now`, so nothing
+    /// here schedules a wake in the past for a reading that already
+    /// lapsed.
     public func nextTrustExpiry(now: Date) -> Date? {
         var expiries: [Date] = []
         if session.state != .unknown, let sample = sessionSample, let asOf = usageAsOf {

@@ -1,6 +1,5 @@
 import ClaudeUsage
 import Foundation
-import Indicators
 import PlatformStatus
 
 /// Drives MonoCl's state: polls both sources, applies what comes back,

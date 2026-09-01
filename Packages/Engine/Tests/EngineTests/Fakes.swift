@@ -29,10 +29,12 @@ func settle(until condition: () -> Bool, limit: Int = 10_000) async {
     Issue.record("the condition never held after \(limit) turns")
 }
 
-/// Waits for a usage poll's outcome to reach the store, whatever that
-/// outcome is: every one of them replaces the store's initial detail.
-/// Named rather than inlined so a test waits on the poll having landed,
-/// not on the value it is about to assert.
+/// Waits for a usage poll's outcome to reach the store. Every outcome
+/// these tests produce — a failure, or a trusted `.samples` — replaces
+/// the store's initial detail; an untrusted sample would not, but none
+/// of these scripts produces one. Named rather than inlined so a test
+/// waits on the poll having landed, not on the value it is about to
+/// assert.
 @MainActor
 func awaitUsageOutcome(_ engine: Engine) async {
     await settle(until: { engine.store.session.detail != IndicatorStore.noReading })

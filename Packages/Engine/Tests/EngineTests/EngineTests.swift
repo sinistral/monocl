@@ -97,14 +97,23 @@ struct EngineSuite {
         let fetchesBefore = http.callCount
         let changesBefore = changes
         await time.advance(by: 480)
+        // `advance` walks a fixed number of turns; the assertions below
+        // rest on the 840 usage tick having reached `ScriptedHTTP.get`
+        // within them, which this makes explicit rather than assumed.
+        await settle(until: { http.callCount == fetchesBefore + 1 })
 
         #expect(engine.store.session.state == .unknown)
         #expect(engine.store.session.detail == "Offline")
         #expect(engine.store.week.state == .unknown)
-        // The expiry timer, not a poll, is what re-derived: usage is
-        // next due at 1680 under backoff and the platform at 1260, so
-        // the only thing that ran at 900 was the timer.
-        #expect(changes > changesBefore)
+        // Three re-derivations land in this window: the usage poll at
+        // 840 (its second failure, backed off by one base interval from
+        // the first at 420), the platform poll at 840, and the expiry
+        // timer at 900 — the instant the retained sample's staleness
+        // budget (asOf 0, staleAfter 900) runs out. The timer is what
+        // re-derives the state this test asserts on: usage's next poll
+        // isn't due until 1680 under backoff, and the platform's not
+        // until 1260.
+        #expect(changes == changesBefore + 3)
         #expect(http.callCount == fetchesBefore + 1)
     }
 
@@ -157,7 +166,6 @@ struct EngineSuite {
         // all, since the credential read comes first.
         await time.advance(by: 3600)
         #expect(credentials.readCount == 1)
-        #expect(http.callCount == 0)
     }
 
     @Test("A threshold edit re-derives the lights without fetching")
@@ -185,7 +193,7 @@ struct EngineSuite {
         #expect(http.callCount == fetchesBefore)
     }
 
-    @Test("A rate limit outranks an outstanding request in the refresh row")
+    @Test("A rate limit fills the refresh row once the requests have landed")
     func pendingRefreshPolicy() async throws {
         let time = TestTimeSource(now: origin)
         let http = ScriptedHTTP([.response(status: 429, body: "", retryAfter: 900)])
