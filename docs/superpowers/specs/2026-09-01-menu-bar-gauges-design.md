@@ -104,8 +104,10 @@ nominal, one at warning, two at critical.
 | warning | amber | sweep + 1 slot | wedge + 1 slot |
 | critical | red | sweep + 2 slots | wedge + 2 slots |
 
-The platform dot keeps the existing treatment: a ring when quiet, a
-disc when not, notched once at warning and twice at critical.
+The platform dot takes the same count: a ring when quiet, a disc when
+not, cut once at warning and twice at critical. One rule covers all
+three indicators, so a reader learns "how many slots" once rather than
+learning a gauge convention and a dot convention separately.
 
 Three properties of this cue were established by prototype and are the
 reasons for its specific shape:
@@ -181,6 +183,14 @@ public struct IconSpec: Sendable, Equatable {
 }
 ```
 
+`DotSpec` keeps its role as the platform light's description, but
+`Fill.notched` goes. It encoded "critical" as a distinct shape, and the
+mark count now encodes severity for every indicator; keeping both would
+mean two spellings of one idea, and the dot would be the only place the
+old one survived. `DotSpec` therefore becomes `fill` (`.ring(faint:)`
+or `.filled`), `tint`, and the same `breachMarks` count the gauges
+carry.
+
 `GaugeSpec` carries decisions, not geometry: diameters, stroke widths
 and slot angles stay in `MenuBarIcon`, which is where the AppKit types
 already live. The renderer knows that the session is drawn as a ring and
@@ -191,9 +201,6 @@ Naming the parts also fixes `accessibilityDescription`, which today
 zips `["Session", "week", "platform"]` against an array and silently
 truncates if the counts disagree. With named fields there is nothing to
 zip and no mismatch to guard.
-
-`DotSpec` survives unchanged for the platform light, `.notched`
-included.
 
 `isTemplate` keeps its existing rule — true until something breaches —
 for the reasons the original design gives: the common case gets correct
