@@ -221,7 +221,7 @@ system behavior for free, and the rare case wants a fixed color anyway.
 | | `Reading.percent` |
 |---|---|
 | **written by** | `IndicatorStore.usageReading`, on every `revalidate(now:)`, from `UsageSample.percent`; nil for the platform reading, which has no percentage |
-| **read by** | `iconSpec(for:)`, to compute sweep angle and mark count |
+| **read by** | `iconSpec(session:week:platform:)`, to compute sweep angle |
 | **cleared by** | nothing separately: `Reading` is rebuilt wholesale on every `revalidate`, so the field is nil again whenever the sample is absent or fails the trust check |
 
 The single-reader column is worth defending, because a discriminator
@@ -244,9 +244,9 @@ the behavior worth pinning lives:
 - a percentage maps to the expected `fraction`, and an unknown reading
   to nil rather than to zero — the two must not be conflated, since one
   means "none used" and the other means "cannot vouch for it";
-- `breachMarks` is 0, 1 and 2 at the nominal, warning and critical
-  thresholds, asserted at the inclusive boundaries `Thresholds` already
-  promises;
+- `breachMarks` is 0, 1 and 2 for nominal, warning and critical
+  `IndicatorState` values constructed directly, since `iconSpec` never
+  consults `Thresholds` and has no boundaries of its own to assert at;
 - `isTemplate` is false exactly when some part breaches.
 
 Assertions state the expected value positively rather than the absence
