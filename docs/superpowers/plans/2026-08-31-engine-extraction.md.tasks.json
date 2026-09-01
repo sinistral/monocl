@@ -4,7 +4,7 @@
     {
       "id": 0,
       "subject": "Task 1: Engine package and TimeSource seam",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** A new Packages/Engine package containing TimeSource, SystemTimeSource, and a tested virtual TestTimeSource, wired into the Xcode project with no consumers yet.\n\n**Files:**\n- Create: `Packages/Engine/Package.swift`\n- Create: `Packages/Engine/Sources/Engine/TimeSource.swift`\n- Create: `Packages/Engine/Tests/EngineTests/TestTimeSource.swift`\n- Create: `Packages/Engine/Tests/EngineTests/TestTimeSourceTests.swift`\n- Modify: `project.yml`\n\n**Acceptance Criteria:**\n- [ ] `swift build` and `swift test` succeed in `Packages/Engine`\n- [ ] TestTimeSource wakes sleepers in deadline order, each observing `now` equal to its own deadline\n- [ ] A cancelled sleep on TestTimeSource returns without any advance\n- [ ] `xcodebuild -scheme MonoCl build` still succeeds after regenerating the project\n\n**Verify:** `cd Packages/Engine && swift test > \"$SCRATCH/engine-task1.log\" 2>&1; echo \"exit=$?\"` \u2192 exit=0\n\n```json:metadata\n{\"files\": [\"Packages/Engine/Package.swift\", \"Packages/Engine/Sources/Engine/TimeSource.swift\", \"Packages/Engine/Tests/EngineTests/TestTimeSource.swift\", \"Packages/Engine/Tests/EngineTests/TestTimeSourceTests.swift\", \"project.yml\"], \"verifyCommand\": \"cd Packages/Engine && swift test > \\\"$SCRATCH/engine-task1.log\\\" 2>&1; echo \\\"exit=$?\\\"\", \"acceptanceCriteria\": [\"swift test passes in Packages/Engine\", \"sleepers wake in deadline order at their own deadline\", \"a cancelled sleep returns without advancing\", \"xcodebuild build succeeds after xcodegen\"], \"modelTier\": \"standard\"}\n```"
     },
     {
@@ -62,5 +62,5 @@
       ]
     }
   ],
-  "lastUpdated": "2026-08-31T19:13:04-06:00"
+  "lastUpdated": "2026-08-31T19:20:26-06:00"
 }
