@@ -89,3 +89,28 @@ confirm that a rebuild no longer re-prompts.
 **Trigger:** the per-build prompt becoming irritating enough to notice,
 or MonoCl being installed somewhere it runs for long stretches without
 being rebuilt.
+
+---
+
+## 4. Revisit the test host's fake credential
+
+**Deferred:** removing `MONOCL_FAKE_CREDENTIAL: not-found` from the
+`MonoCl` scheme.
+
+The test bundle is hosted by the app, so `xcodebuild test` launches
+MonoCl and `applicationDidFinishLaunching` runs before any test does.
+The environment variable is what stops that launch reading a real
+credential. Extracting the engine did not change this: it moved the
+behaviour worth testing into `Packages/Engine`, where `swift test`
+needs no host at all, so the variable now protects only the remaining
+app-target tests.
+
+**Why deferring is acceptable:** the variable costs one line and
+misleads nobody, and the app-target tests it protects still run under
+the host.
+
+**What to build:** a test target that does not use the app as its host,
+if the app-target suite ever shrinks to renderers alone.
+
+**Trigger:** the next time the scheme's environment block is edited for
+any other reason.

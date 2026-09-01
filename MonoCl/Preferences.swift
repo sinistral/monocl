@@ -1,3 +1,4 @@
+import Engine
 import Foundation
 import Indicators
 import Observation
@@ -15,13 +16,6 @@ final class Preferences {
         static let refreshInterval = "refreshInterval"
         static let staleAfter = "staleAfter"
     }
-
-    /// The shortest cadence the user may choose, and the floor
-    /// `Refresher` applies to every request it makes.  Chosen for the
-    /// endpoint's sake rather than the display's: the windows being
-    /// reported span five hours and seven days, so a minute is already
-    /// finer resolution than the data has.
-    static let minimumRefreshInterval: TimeInterval = 60
 
     private let defaults: UserDefaults
 
@@ -55,8 +49,8 @@ final class Preferences {
     }
 
     var refreshInterval: TimeInterval {
-        get { max(defaults.double(forKey: Key.refreshInterval), Self.minimumRefreshInterval) }
-        set { defaults.set(max(newValue, Self.minimumRefreshInterval), forKey: Key.refreshInterval) }
+        get { max(defaults.double(forKey: Key.refreshInterval), EngineSettings.minimumRefreshInterval) }
+        set { defaults.set(max(newValue, EngineSettings.minimumRefreshInterval), forKey: Key.refreshInterval) }
     }
 
     /// Clamped on read to span at least two poll intervals, for the
