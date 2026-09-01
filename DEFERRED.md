@@ -114,3 +114,40 @@ if the app-target suite ever shrinks to renderers alone.
 
 **Trigger:** the next time the scheme's environment block is edited for
 any other reason.
+
+---
+
+## 5. Make the drift check notice a value it cannot decode
+
+**Deferred:** extending `Scripts/check-fixture-drift.sh` to compare the
+things `UsageWindow` and `SummaryResponse` actually require, rather than
+only the JSON type of each named key.
+
+On 2026-09-01 MonoCl showed "Unexpected response" on both usage rows for
+roughly half an hour, logging `Usage response did not decode` against a
+200. Run during that window, the drift check reported "Fixtures match
+the live response shapes". Both statements were true: the script asserts
+that each named key exists in both documents and holds the same JSON
+type, so two shapes it cannot see still break decoding — a `null` where
+`UsageWindow` requires a non-optional value, and a `resets_at` whose
+format neither of the two accepted `DateFormatter` patterns parses. The
+failure cleared on its own and the offending body was never captured, so
+which of those it was is unknown.
+
+**Why deferring is acceptable:** the script's purpose is to warn that the
+response's SHAPE has moved, and at that it works — this is a widening,
+not a correction. The immediate cost of the gap was diagnostic, and that
+half is now closed: both decode sites log the underlying `DecodingError`,
+so the next occurrence names its own field without anyone re-deriving it
+by hand.
+
+**What to build:** decode the live response through the real types rather
+than comparing keys — the shipping decoder is the only authority on what
+is decodable. A small executable target depending on `ClaudeUsage` and
+`PlatformStatus` that decodes a fetched body and exits non-zero on a
+thrown `DecodingError` would replace most of `compare-shape.py`'s
+per-key logic, and would have named this failure in one run.
+
+**Trigger:** the next unexplained "Unexpected response" that the new
+error logging does not immediately explain, or any change to the two
+sources' `Decodable` conformances.
