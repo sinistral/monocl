@@ -19,9 +19,12 @@ severity survives for readers who cannot rely on the amber/red pair.
 Hovering gives the numbers and reset times; the menu gives them in
 words, plus "Refresh now", Settings, and Quit.
 
-Color only ever means *your usage is high*. It never means MonoCl is
-unhappy: every failure resolves to a dim, unknown state and explains
-itself in words.
+Color only ever means *the thing being measured is in a bad state* —
+your usage is high, or Anthropic has an incident open. It never means
+MonoCl itself is unhappy: every failure resolves to a dim, unknown state
+and explains itself in words. A light that turns red because a DNS
+lookup failed teaches the reader to distrust it, and the one time it
+turns red for the real reason they will dismiss it.
 
 ## Requirements
 
@@ -87,8 +90,9 @@ notarized release channel, and no binary to download. The exposure stays
 what it is intended to be: one person reading their own account's quota
 on their own machine, having read the paragraphs above and decided for
 themselves. If Anthropic refuses the request server-side with a 403,
-MonoCl reports that plainly and backs off to its cap rather than
-retrying — a policy signal should not be made indistinguishable from
+MonoCl reports that plainly and lets the exponential backoff stretch the
+interval toward its fifteen-minute cap rather than hammering the
+endpoint — a policy signal should not be made indistinguishable from
 abuse.
 
 There is a second, mechanical reason there is no App Store build: an App
@@ -154,8 +158,9 @@ in full. Opening the menu re-renders but never fetches.
 
 ## Documentation
 
-Design documents and implementation plans live in `docs/superpowers/`;
-`DEFERRED.md` records what was consciously left undone and why.
+Design documents and implementation plans live in `docs/superpowers/`.
+`DEFERRED.md`, at the repository root, records what was consciously left
+undone and why.
 
 ## License
 
