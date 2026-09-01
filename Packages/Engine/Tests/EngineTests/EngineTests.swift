@@ -132,7 +132,9 @@ struct EngineSuite {
         #expect(engine.store.session.state == .nominal)
 
         engine.systemDidWake()
-        #expect(engine.store.states == [.unknown, .unknown, .unknown])
+        #expect(engine.store.session.state == .unknown)
+        #expect(engine.store.week.state == .unknown)
+        #expect(engine.store.platform.state == .unknown)
         #expect(engine.pendingRefresh == .refreshing)
 
         // The restarted pollers compute their wait from the clock as it

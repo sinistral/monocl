@@ -131,6 +131,7 @@ public final class IndicatorStore {
             state: thresholds.state(forPercent: sample.percent),
             detail: "\(Int(sample.percent.rounded()))%",
             note: usageFailure?.menuText,
+            percent: sample.percent,
             asOf: asOf
         )
     }
@@ -179,9 +180,6 @@ public final class IndicatorStore {
         }
         return expiries.min()
     }
-
-    /// Convenience for the renderer: the three states in display order.
-    public var states: [IndicatorState] { [session.state, week.state, platform.state] }
 }
 
 extension IndicatorStore {

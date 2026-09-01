@@ -256,7 +256,9 @@ struct IndicatorStoreTests {
         // Three DISTINGUISHABLE states, so a transposition fails rather
         // than coincidentally matching: session critical (95%), week
         // nominal (10%), platform warning.
-        #expect(s.states == [.critical, .nominal, .warning])
+        #expect(s.session.state == .critical)
+        #expect(s.week.state == .nominal)
+        #expect(s.platform.state == .warning)
     }
 
     @Test("A rate limit is visible as such, with or without a Retry-After")
@@ -288,5 +290,38 @@ struct IndicatorStoreTests {
 
         store.apply(UsageOutcome.failure(.offline))
         #expect(store.isUsageRateLimited == false)
+    }
+
+    @Test("A trusted usage reading carries its percentage")
+    func usageReadingCarriesPercent() {
+        let s = store()
+        s.apply(samples(session: 76, week: 20))
+        s.revalidate(now: now)
+        #expect(s.session.percent == 76)
+        #expect(s.week.percent == 20)
+    }
+
+    @Test("A reading MonoCl cannot vouch for carries no percentage")
+    func untrustedReadingHasNoPercent() {
+        let s = store(staleAfter: 300)
+        s.apply(samples(session: 76))
+        s.revalidate(now: now.addingTimeInterval(301))
+        // Nil rather than zero: "cannot vouch for it" and "none used"
+        // are different pictures, and the renderer draws them
+        // differently.
+        #expect(s.session.state == .unknown)
+        #expect(s.session.percent == nil)
+    }
+
+    @Test("The platform reading carries no percentage")
+    func platformReadingHasNoPercent() {
+        let s = store()
+        s.apply(StatusOutcome.sample(
+            StatusSample(state: .nominal, description: "All Systems Operational"),
+            asOf: now
+        ))
+        s.revalidate(now: now)
+        #expect(s.platform.state == .nominal)
+        #expect(s.platform.percent == nil)
     }
 }
