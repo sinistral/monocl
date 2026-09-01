@@ -44,8 +44,9 @@ or before MonoCl is used by anyone who did not build it.
 
 ## 2. Mirror indicator order in right-to-left locales
 
-**Deferred:** reversing the left-to-right dot order (session, weekly,
-platform) for locales that read right to left.
+**Deferred:** mirroring the left-to-right arrangement — the gauge
+glyph (session ring, week pie) followed by the platform dot — for
+locales that read right to left.
 
 The brief specifies the ordering "for locales that read from left to
 right", which implies the mirrored arrangement elsewhere. MonoCl is a
@@ -53,10 +54,11 @@ single-user personal tool built for a left-to-right locale, so
 implementing the mirror now would be speculative work with no user.
 
 **Why deferring is acceptable:** nothing else in the design has to
-move to accommodate it later. The dot order is decided in one place —
-the renderer that composes the three-dot image — so the change is a
-single `NSApp.userInterfaceLayoutDirection` check at that point. No
-data model, threshold rule, or tooltip logic depends on the order.
+move to accommodate it later. The arrangement is decided in one
+place — the renderer that composes the gauge glyph and the platform
+dot — so the change is a single `NSApp.userInterfaceLayoutDirection`
+check at that point. No data model, threshold rule, or tooltip logic
+depends on the order.
 
 **What to build:** move the platform dot to the left of the gauge
 glyph when the effective layout direction is right-to-left, and
@@ -157,3 +159,49 @@ per-key logic, and would have named this failure in one run.
 **Trigger:** the next unexplained "Unexpected response" that the new
 error logging does not immediately explain, or any change to the two
 sources' `Decodable` conformances.
+
+---
+
+## 6. Distinguish an unknown gauge from a 0% gauge
+
+**Deferred:** making the session and week gauges render differently
+for "cannot vouch for this reading" than for "reading is zero".
+
+`IndicatorStore.usageReading` returns an unknown reading only through
+`Reading.unknown(...)`, which fixes `percent` to nil, and
+`Thresholds.state(forPercent:)` never returns `.unknown` from a real
+percentage. So for a usage reading, `state == .unknown` exactly when
+`percent == nil`, hence `GaugeSpec.fraction == nil`. `MenuBarIcon`'s
+`draw(ring:)` and `draw(pie:)` both guard their coloured sweep behind
+`fraction > 0` and call `color(for: gauge.tint)` only inside that
+guard, so a nil fraction never reaches it: the track is drawn in a
+fixed `labelColor` at 0.18 alpha regardless of tint. A 0% reading
+takes the same path, since its fraction is also not greater than
+zero. The consequence is that `GaugeSpec.tint == .dimmed` is
+unreachable in the renderer, and the spec's "unknown → dimmed" row
+(line 111) is not implemented for the two gauges — the dimmed tint
+survives only in `accessibilityDescription`, which does distinguish
+the two cases by describing an unknown gauge's state by name instead
+of a percentage.
+
+This was confirmed live on screen, not only by reading the code, and
+it reads worse for the week gauge than the session gauge: the pie's
+track is a full faint disc at any fraction, so an unknown week gauge
+reads as "full" before its low alpha reads as "unknown".
+
+**Why deferring is acceptable:** the accessibility description
+already carries the distinction MonoCl needs to not actively lie —
+VoiceOver announces "unknown" rather than "0 percent" — so the gap is
+a sighted-reader ambiguity, not a case where the tool reports false
+information. MonoCl is single-user, and its author now knows to read
+the tooltip rather than the glyph alone when a gauge looks empty.
+
+**What to build:** give the unknown state its own mark on the gauge
+track — e.g. a hairline dash, a distinct track alpha, or a small
+glyph — so `draw(ring:)` and `draw(pie:)` branch on `gauge.fraction
+== nil` before falling back to the fixed track colour, the way
+`draw(dot:)` already branches on fill to tell a ring from a disc.
+
+**Trigger:** the collision causing a real misreading in daily use, or
+any change that gives the gauges a use case where zero usage and
+unknown usage need to be told apart at a glance.
