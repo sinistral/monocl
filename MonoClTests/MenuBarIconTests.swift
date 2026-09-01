@@ -74,4 +74,90 @@ struct MenuBarIconTests {
         let rep = try #require(NSBitmapImageRep(data: data))
         #expect(rep.size == icon.size)
     }
+
+    // MARK: - What the pixels show
+
+    /// Where the glyph is centred horizontally, in points: the 2pt
+    /// inset plus half the 20pt glyph box.  Recomputed here rather than
+    /// read from the renderer, so that a sample cannot follow the
+    /// drawing wherever it moves.
+    private let glyphCentreX = 12.0
+
+    private func bitmap(of icon: NSImage) throws -> NSBitmapImageRep {
+        let data = try #require(icon.tiffRepresentation)
+        let rep = try #require(NSBitmapImageRep(data: data))
+        // One pixel per point, so that the sample coordinates below —
+        // which are all in points — address the pixels they name.
+        #expect(rep.pixelsWide == 34)
+        return rep
+    }
+
+    /// Alpha at the point `radius` out from the glyph centre, on the
+    /// bearing a gauge uses for `percent`.
+    ///
+    /// The bearing is spelled out here rather than borrowed from the
+    /// renderer.  A sample sharing the renderer's own arithmetic would
+    /// follow a mirrored or rotated gauge wherever it went, and pin
+    /// nothing about which way round the sweep runs.
+    private func alpha(_ rep: NSBitmapImageRep, atPercent percent: Double,
+                       radius: Double) throws -> Double {
+        let radians = (90 - percent / 100 * 360) * .pi / 180
+        let x = glyphCentreX + cos(radians) * radius
+        let y = Double(rep.pixelsHigh) / 2 + sin(radians) * radius
+        // Row zero of the bitmap is the top edge; the drawing used a
+        // bottom-left origin.
+        let colour = try #require(rep.colorAt(x: Int(x.rounded(.down)),
+                                              y: rep.pixelsHigh - 1 - Int(y.rounded(.down))))
+        return Double(colour.alphaComponent)
+    }
+
+    /// The faintest pixel within two degrees of a bearing.
+    ///
+    /// A 1pt slot is a single pixel at 1x and lands between two of them
+    /// at most bearings, so the pixel the bearing rounds to is not
+    /// reliably the cut one.
+    private func faintestAlpha(_ rep: NSBitmapImageRep, aroundPercent percent: Double,
+                               radius: Double) throws -> Double {
+        let halfWindow = 2.0 / 3.6
+        return try stride(from: percent - halfWindow, through: percent + halfWindow, by: 0.05)
+            .map { try alpha(rep, atPercent: $0, radius: radius) }
+            .min() ?? 1
+    }
+
+    @Test("The session is the outer ring, and it sweeps clockwise")
+    func sessionSweepsClockwiseOnTheRing() throws {
+        let rep = try bitmap(of: image(session: .nominal, sessionPercent: 30,
+                                       week: .unknown, weekPercent: nil))
+        // 30% consumed runs from twelve o'clock to three, so three
+        // o'clock is inside the sweep and nine o'clock is bare track.
+        // Anticlockwise, or the ring drawn from the week, and the two
+        // swap.
+        #expect(try alpha(rep, atPercent: 25, radius: 8.5) > 0.5)
+        let unswept = try alpha(rep, atPercent: 75, radius: 8.5)
+        #expect(unswept > 0 && unswept < 0.3)
+    }
+
+    @Test("The week is the inner wedge, and it sweeps clockwise")
+    func weekSweepsClockwiseOnThePie() throws {
+        let rep = try bitmap(of: image(session: .unknown, sessionPercent: nil,
+                                       week: .nominal, weekPercent: 30))
+        #expect(try alpha(rep, atPercent: 25, radius: 3) > 0.5)
+        let unswept = try alpha(rep, atPercent: 75, radius: 3)
+        #expect(unswept > 0 && unswept < 0.3)
+    }
+
+    @Test("Two breach slots are cut out of a critical ring, at the mark bearings")
+    func breachSlotsAreCutFromTheRing() throws {
+        let rep = try bitmap(of: image(session: .critical, sessionPercent: 94,
+                                       week: .unknown, weekPercent: nil))
+        // A 94% ring is solid everywhere the slots are not, so the
+        // control reads fully opaque and each slot reads as a distinct
+        // loss of it.  A cut painted in a colour rather than composited
+        // with `.clear` would leave the control's opacity behind, and a
+        // slot at the wrong bearing — or a second one never drawn at
+        // all — would leave its window at the control's value too.
+        #expect(try alpha(rep, atPercent: 50, radius: 8.5) > 0.9)
+        #expect(try faintestAlpha(rep, aroundPercent: 73, radius: 8.5) < 0.7)
+        #expect(try faintestAlpha(rep, aroundPercent: 88, radius: 8.5) < 0.7)
+    }
 }

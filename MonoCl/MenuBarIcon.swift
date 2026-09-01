@@ -29,13 +29,14 @@ enum MenuBarIcon {
     /// Inside the thresholds, not on them
     /// ---
     ///
-    /// A slot at the 75% angle sits under a degree of arc from the tip
-    /// of a just-breached 76% gauge — less than a pixel at drawn size —
-    /// so it reads as the arc ending rather than as a mark within it,
-    /// and just-breached is exactly when the cue matters most.  Pulling
-    /// the slots inward leaves drawn material on both sides of every
-    /// cut.  They count severity; the arc length already reports the
-    /// value.
+    /// A slot at the 75% angle sits 3.6 degrees from the tip of a
+    /// just-breached 76% gauge — about 0.53 pt of arc at the ring's
+    /// 8.5 pt centreline radius, roughly one device pixel on a Retina
+    /// display — so it reads as the arc ending rather than as a mark
+    /// within it, and just-breached is exactly when the cue matters
+    /// most.  Pulling the slots inward leaves drawn material on both
+    /// sides of every cut.  They count severity; the arc length
+    /// already reports the value.
     private static let markAngles: [CGFloat] = [angle(atPercent: 73), angle(atPercent: 88)]
 
     /// Clockwise from twelve o'clock, which is where every gauge starts.
