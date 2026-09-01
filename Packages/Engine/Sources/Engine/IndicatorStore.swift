@@ -131,6 +131,7 @@ public final class IndicatorStore {
             state: thresholds.state(forPercent: sample.percent),
             detail: "\(Int(sample.percent.rounded()))%",
             note: usageFailure?.menuText,
+            percent: sample.percent,
             asOf: asOf
         )
     }
