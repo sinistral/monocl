@@ -34,11 +34,22 @@ Scope note: third-party trademarks
 The license above covers this repository's own source, including the
 monocle drawn in Icon/monocl.svg.
 
-It does NOT grant any right to the Claude flare embedded in that file
-(the `<path>` inside the `translate(...) scale(...)` group), which is
-Anthropic's trademark, reproduced unaltered and used here only to
-identify the service MonoCl reads.  Anthropic reserves its own rights
-in that mark; nothing in the BSD grant above conveys them, and a
-redistributor of this source acquires no license to the mark by
-receiving it.  Remove or replace that path in any derivative work
-whose use of the mark Anthropic has not agreed to.
+It does NOT grant any right to the Claude flare, which is Anthropic's
+trademark, reproduced unaltered and used here only to identify the
+service MonoCl reads.  Anthropic reserves its own rights in that mark;
+nothing in the BSD grant above conveys them, and a redistributor of
+this source acquires no license to the mark by receiving it.
+
+The mark is present in three places, not one, and a derivative work
+whose use of it Anthropic has not agreed to must remove it from all of
+them:
+
+  - Icon/monocl.svg, as the file's single `<path>` element;
+  - every PNG under MonoCl/Assets.xcassets/AppIcon.appiconset/, each
+    rasterized from that path and committed rather than generated at
+    build time;
+  - the icon resources of any application bundle built from this
+    source, which are compiled from those PNGs.
+
+Deleting the path alone leaves the mark in the committed icon set and
+in every binary built from it.

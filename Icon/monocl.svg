@@ -16,7 +16,8 @@
 
     The flare is Anthropic's own mark, used unaltered.  It is their
     trademark, which is why MonoCl is built locally rather than
-    published: see the README's distribution section.
+    published: see "Why there is no App Store build, and no signed
+    release" in the README, and the scope note at the foot of LICENSE.
   -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
@@ -28,9 +29,8 @@
   <!-- The tile is drawn here, not left to the system: an app icon
        supplies its own background.  824pt centred in the 1024pt canvas
        is the conventional macOS proportion, leaving the 100pt margin
-       the platform's icons carry.  Verified only by inspecting what
-       NSWorkspace returns for the built app, which is what Finder and
-       the Dock draw; macOS applies its own mask and shadow over this. -->
+       the platform's icons carry.  Checked only by eye, against the
+       image NSWorkspace returns for the built app. -->
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)"/>
 
   <g transform="translate(42,23)">
