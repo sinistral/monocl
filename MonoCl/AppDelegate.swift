@@ -1,5 +1,6 @@
 import AppKit
 import ClaudeUsage
+import Engine
 import Indicators
 import Observation
 import PlatformStatus
@@ -49,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         usageRefresher = Refresher(
             interval: { [preferences] in preferences.refreshInterval },
             minimumSpacing: Preferences.minimumRefreshInterval,
+            time: SystemTimeSource(),
             retryAfter: { [weak self] in self?.rateLimitRemaining(now: .now) }
         ) { [weak self] in
             await self?.pollUsage() ?? false
@@ -56,7 +58,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         statusRefresher = Refresher(
             interval: { [preferences] in preferences.refreshInterval },
-            minimumSpacing: Preferences.minimumRefreshInterval
+            minimumSpacing: Preferences.minimumRefreshInterval,
+            time: SystemTimeSource()
         ) { [weak self] in
             await self?.pollStatus() ?? false
         }

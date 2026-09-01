@@ -1,4 +1,4 @@
-// MonoCl/Refresher.swift
+// Packages/Engine/Sources/Engine/Refresher.swift
 import ClaudeUsage
 import Foundation
 import Indicators
@@ -22,7 +22,7 @@ import PlatformStatus
 /// reacts to failures, so on its own it bounds nothing while everything
 /// succeeds.
 @MainActor
-final class Refresher {
+public final class Refresher {
     private var task: Task<Void, Never>?
     private var consecutiveFailures = 0
 
@@ -35,7 +35,7 @@ final class Refresher {
     /// which is the same distinction: `start()` is only ever called for
     /// a fetch in its own right — launching, "Refresh now", waking —
     /// never for the next turn of the loop.
-    private(set) var isRefreshPending = false
+    public private(set) var isRefreshPending = false
 
     /// Survives `stop()` deliberately: it records when the endpoint was
     /// last touched, which a restart does not undo.
@@ -43,25 +43,28 @@ final class Refresher {
 
     private let interval: () -> TimeInterval
     private let minimumSpacing: TimeInterval
+    private let time: any TimeSource
     private let tick: () async -> Bool
     private let retryAfter: () -> TimeInterval?
 
     /// - Parameter tick: performs one fetch; returns whether it succeeded.
-    init(
+    public init(
         interval: @escaping () -> TimeInterval,
         minimumSpacing: TimeInterval,
+        time: any TimeSource,
         retryAfter: @escaping () -> TimeInterval? = { nil },
         tick: @escaping () async -> Bool
     ) {
         self.interval = interval
         self.minimumSpacing = minimumSpacing
+        self.time = time
         self.retryAfter = retryAfter
         self.tick = tick
     }
 
-    func start() {
+    public func start() {
         stop()
-        let firstWait = firstTickWait(now: .now)
+        let firstWait = firstTickWait(now: time.now)
         isRefreshPending = true
         task = Task { [weak self] in
             // A restart's first tick has no cadence to serve — whoever
@@ -76,16 +79,16 @@ final class Refresher {
                         consecutiveFailures: self.consecutiveFailures,
                         retryAfter: self.retryAfter()
                     ),
-                    self.spacingRemaining(now: .now)
+                    self.spacingRemaining(now: self.time.now)
                 )
                 isFirstTick = false
 
                 if wait > 0 {
-                    try? await Task.sleep(for: .seconds(wait), tolerance: .seconds(wait * 0.1))
+                    await self.time.sleep(for: wait, tolerance: wait * 0.1)
                     guard !Task.isCancelled else { return }
                 }
 
-                self.lastTickAt = .now
+                self.lastTickAt = self.time.now
                 let succeeded = await self.tick()
 
                 // A tick cancelled mid-flight reports failure because
@@ -115,7 +118,7 @@ final class Refresher {
         return max(0, minimumSpacing - now.timeIntervalSince(lastTickAt))
     }
 
-    func stop() {
+    public func stop() {
         task?.cancel()
         task = nil
         isRefreshPending = false
@@ -133,7 +136,7 @@ final class Refresher {
     /// "Offline".  The window is one fetch every five minutes and the
     /// alternative is tracking in-flight state a restart would race on,
     /// which is more machinery than the fault is worth.
-    func refreshNow() {
+    public func refreshNow() {
         guard !isRefreshPending else { return }
         consecutiveFailures = 0
         start()
