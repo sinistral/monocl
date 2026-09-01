@@ -1,14 +1,12 @@
-// MonoCl/Refresher.swift
-import ClaudeUsage
+// Packages/Engine/Sources/Engine/Refresher.swift
 import Foundation
 import Indicators
-import PlatformStatus
 
 /// Drives one source on a timer.
 ///
-/// `Task.sleep` carries a tolerance so the system can coalesce these
-/// wake-ups with other timers, per Apple's energy guidance — an idle Mac
-/// should stay idle.
+/// Every wait is handed to the `TimeSource` with a tolerance so the
+/// system can coalesce these wake-ups with other timers, per Apple's
+/// energy guidance — an idle Mac should stay idle.
 ///
 /// Request rate is a property of this object, not of its callers
 /// ---
@@ -28,8 +26,8 @@ final class Refresher {
 
     /// Whether a requested refresh has yet to land.  One fact, not a
     /// reason: WHY a refresh cannot happen is the rate limit, and the
-    /// rate limit is known to `AppDelegate`, which owns the deadline.
-    /// This object only schedules.
+    /// rate limit is known to `Engine`, which owns the deadline.  This
+    /// object only schedules.
     ///
     /// Every `start()` sets it and the ordinary cadence never does,
     /// which is the same distinction: `start()` is only ever called for
@@ -43,6 +41,7 @@ final class Refresher {
 
     private let interval: () -> TimeInterval
     private let minimumSpacing: TimeInterval
+    private let time: any TimeSource
     private let tick: () async -> Bool
     private let retryAfter: () -> TimeInterval?
 
@@ -50,18 +49,20 @@ final class Refresher {
     init(
         interval: @escaping () -> TimeInterval,
         minimumSpacing: TimeInterval,
+        time: any TimeSource,
         retryAfter: @escaping () -> TimeInterval? = { nil },
         tick: @escaping () async -> Bool
     ) {
         self.interval = interval
         self.minimumSpacing = minimumSpacing
+        self.time = time
         self.retryAfter = retryAfter
         self.tick = tick
     }
 
     func start() {
         stop()
-        let firstWait = firstTickWait(now: .now)
+        let firstWait = firstTickWait(now: time.now)
         isRefreshPending = true
         task = Task { [weak self] in
             // A restart's first tick has no cadence to serve — whoever
@@ -76,16 +77,16 @@ final class Refresher {
                         consecutiveFailures: self.consecutiveFailures,
                         retryAfter: self.retryAfter()
                     ),
-                    self.spacingRemaining(now: .now)
+                    self.spacingRemaining(now: self.time.now)
                 )
                 isFirstTick = false
 
                 if wait > 0 {
-                    try? await Task.sleep(for: .seconds(wait), tolerance: .seconds(wait * 0.1))
+                    await self.time.sleep(for: wait, tolerance: wait * 0.1)
                     guard !Task.isCancelled else { return }
                 }
 
-                self.lastTickAt = .now
+                self.lastTickAt = self.time.now
                 let succeeded = await self.tick()
 
                 // A tick cancelled mid-flight reports failure because

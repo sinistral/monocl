@@ -148,7 +148,12 @@ public struct UsageSource: Sendable {
                     tokenExpiresAt: credential.expiresAt
                 )
             } catch {
-                logger.error("Usage response did not decode")
+                // Safe to log in full: `UsageResponse` decodes only
+                // `five_hour`/`seven_day` windows' `utilization` and
+                // `resets_at`, so a `DecodingError` here can name only
+                // those fields or quote a malformed timestamp, never
+                // the bearer token carried in the request header.
+                logger.error("Usage response did not decode: \(String(describing: error), privacy: .public)")
                 return .failure(.unexpectedResponse)
             }
         case 401: return .failure(.authorizationRejected)

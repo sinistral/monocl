@@ -85,6 +85,14 @@ public struct PlatformStatusSource: Sendable {
             )
         } catch is URLError {
             return .failure(.offline)
+        } catch let error as DecodingError {
+            // Safe to log in full: `SummaryResponse` decodes only the
+            // public Statuspage summary (`status.indicator`,
+            // `status.description`), and this fetch sends no
+            // credential, so a `DecodingError` here can only name
+            // those fields.
+            logger.error("Status response did not decode: \(String(describing: error), privacy: .public)")
+            return .failure(.unexpectedResponse)
         } catch {
             return .failure(.unexpectedResponse)
         }

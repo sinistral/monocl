@@ -471,7 +471,7 @@ Note the assertion tightens from `>= 4` to `== 4`: with a virtual clock the coun
 - [ ] **Step 3: Run the ported suite**
 
 Run: `cd Packages/Engine && swift test --filter RefresherTests > "$SCRATCH/refresher.log" 2>&1; echo "exit=$?"`
-Expected: exit=0. Then `grep -c 'Task.sleep\|Date.now\|\.now' Packages/Engine/Tests/EngineTests/RefresherTests.swift` → 0.
+Expected: exit=0. Then `grep -c 'Task\.sleep\|Date\.now' Packages/Engine/Tests/EngineTests/RefresherTests.swift` → 0. (`time.now` is allowed and expected; the real clock is not.)
 
 If a case hangs, the cause is almost always a `waitForTicks` for a tick whose deadline the test never advanced past. Print `time.now` at the point of the hang before changing production code.
 
