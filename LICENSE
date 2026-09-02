@@ -35,16 +35,21 @@ The license above covers this repository's own source, including the
 monocle drawn in Icon/monocl.svg.
 
 It does NOT grant any right to the Claude flare, which is Anthropic's
-trademark, reproduced unaltered and used here only to identify the
-service MonoCl reads.  Anthropic reserves its own rights in that mark;
-nothing in the BSD grant above conveys them, and a redistributor of
-this source acquires no license to the mark by receiving it.
+trademark, used here only to identify the service MonoCl reads.  What
+this repository carries is a REDRAWING of that mark rather than
+Anthropic's own artwork; that makes no difference to the position,
+because redrawing a mark changes how it looks and not whose it is.
+Anthropic reserves its own rights in the mark; nothing in the BSD
+grant above conveys them, and a redistributor of this source acquires
+no license to the mark by receiving it.
 
 The mark is present in three places, not one, and a derivative work
 whose use of it Anthropic has not agreed to must remove it from all of
 them:
 
-  - Icon/monocl.svg, as the file's single `<path>` element;
+  - Icon/monocl.svg, as the `<path>` element filled `#d97d5c` (the
+    file's other drawn elements are the monocle, which the license
+    above does cover);
   - every PNG under MonoCl/Assets.xcassets/AppIcon.appiconset/, each
     rasterized from that path and committed rather than generated at
     build time;

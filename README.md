@@ -1,5 +1,9 @@
 # MonoCl
 
+> | ˈmɒnəkl |
+> noun 
+>   a single eyeglass
+
 A macOS menu bar app that shows your Claude usage at a glance: how much
 of the five-hour session window you have spent, how much of the seven-day
 window, and whether the Claude platform is healthy.
@@ -166,9 +170,9 @@ undone and why.
 
 BSD 3-Clause. See [LICENSE](LICENSE).
 
-The one exception is the Claude flare embedded in `Icon/monocl.svg`,
-which is Anthropic's trademark rather than this project's work. It is
-reproduced unaltered to identify the service MonoCl reads, and the BSD
-grant does not extend to it — see the scope note at the foot of
-[LICENSE](LICENSE). It is a further reason this is a local build rather
-than something published.
+The one exception is the Claude flare in `Icon/monocl.svg`, which is
+Anthropic's trademark rather than this project's work. It is a
+redrawing rather than their own artwork, which changes nothing about
+whose mark it is, and the BSD grant does not extend to it — see the
+scope note at the foot of [LICENSE](LICENSE). It is a further reason
+this is a local build rather than something published.
