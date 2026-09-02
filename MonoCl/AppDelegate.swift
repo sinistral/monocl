@@ -3,6 +3,7 @@ import ClaudeUsage
 import Engine
 import Indicators
 import PlatformStatus
+import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -25,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     )
 
     private var statusItem: NSStatusItem?
+    private var settingsWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -34,8 +36,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         item.menu = menu
         statusItem = item
 
+        NSApp.mainMenu = Self.makeMainMenu()
         observeSystemNotifications()
         engine.start()
+    }
+
+    /// An accessory app shows no menu bar of its own, so this menu is
+    /// never seen.  It is installed for its key equivalents: those are
+    /// offered to `NSApp.mainMenu` first, and a window has no fallback
+    /// of its own, so without it the settings window cannot be closed
+    /// from the keyboard and the app cannot be quit from it.
+    ///
+    /// It deliberately omits the standard Edit menu, which costs the
+    /// app every editing shortcut -- Cut, Copy, Paste, Select All,
+    /// Undo.  That is free only while Settings holds nothing editable:
+    /// it is steppers throughout.  A text field added there would need
+    /// this menu to grow an Edit submenu, or the field would silently
+    /// ignore the shortcuts everyone expects of it.
+    private static func makeMainMenu() -> NSMenu {
+        let items = NSMenu()
+        items.addItem(
+            withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"
+        )
+        items.addItem(
+            withTitle: "Quit MonoCl", action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        let application = NSMenuItem()
+        application.submenu = items
+        let menu = NSMenu()
+        menu.addItem(application)
+        return menu
     }
 
     // MARK: - Rendering
@@ -109,8 +140,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func retryUsage() { engine.retryUsage() }
 
-    @objc private func openSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    /// Activating first is what makes the window come forward: clicking
+    /// a status item does not activate an accessory app, so an ordered
+    /// window would otherwise open behind whatever the user was using,
+    /// and never take the keyboard.
+    ///
+    /// `ignoringOtherApps` is deprecated in favour of the bare
+    /// `activate()`, but on macOS 26 the replacement does not activate
+    /// this app: measured from inside the app after choosing Settings,
+    /// `activate()` leaves `NSApp.isActive` and `isKeyWindow` false a
+    /// second later, as does `NSRunningApplication.current.activate`,
+    /// while this call makes both true.
+    @objc func openSettings() {
+        let window = settingsWindow ?? makeSettingsWindow()
+        settingsWindow = window
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func makeSettingsWindow() -> NSWindow {
+        let content = NSHostingController(
+            rootView: SettingsView(
+                preferences: preferences,
+                onChange: { [weak self] in self?.settingsChanged() }
+            )
+        )
+        let window = NSWindow(contentViewController: content)
+        window.title = "MonoCl Settings"
+        // Set before the content is sized: a window keeps its frame
+        // across a style change and rederives its content rect from it,
+        // so sizing first would leave the measurement at the mercy of
+        // whether the dropped styles alter the titlebar metrics.
+        window.styleMask = [.titled, .closable]
+        // A window built from a hosting controller does not adopt the
+        // SwiftUI view's size: without this it opens 380 x 32, a bare
+        // title bar with the form laid out behind nothing.  Measuring
+        // the view and sizing to it opens the window at its final size.
+        window.setContentSize(content.view.fittingSize)
+        // The delegate keeps the window across closes so reopening
+        // returns the same one; releasing it on close would leave that
+        // reference dangling.
+        window.isReleasedWhenClosed = false
+        // The status item is on every Space, so Settings can be chosen
+        // from any of them, but a window keeps the Space it was first
+        // ordered onto.  Without this, choosing Settings from a second
+        // Space switches the user away to the first rather than
+        // bringing the window to them.
+        window.collectionBehavior.insert(.moveToActiveSpace)
+        window.center()
+        return window
     }
 
     @objc private func quit() {
