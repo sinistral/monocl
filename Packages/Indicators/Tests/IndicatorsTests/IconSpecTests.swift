@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Indicators
 
 @Suite("Icon specification")
@@ -72,8 +73,9 @@ struct IconSpecTests {
 
     @Test("Tints follow state")
     func tints() {
-        let s = spec(session: .unknown, sessionPercent: nil,
-                     week: .warning, weekPercent: 78, platform: .critical)
+        let s = spec(
+            session: .unknown, sessionPercent: nil,
+            week: .warning, weekPercent: 78, platform: .critical)
         #expect(s.session.tint == .dimmed)
         #expect(s.week.tint == .amber)
         #expect(s.platform.tint == .red)

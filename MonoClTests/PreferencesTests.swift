@@ -1,6 +1,7 @@
 import Foundation
 import Indicators
 import Testing
+
 @testable import MonoCl
 
 @Suite("Preferences")

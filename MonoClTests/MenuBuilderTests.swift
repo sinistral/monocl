@@ -4,6 +4,7 @@ import ClaudeUsage
 import Engine
 import Indicators
 import Testing
+
 @testable import MonoCl
 
 @MainActor
@@ -23,11 +24,14 @@ struct MenuBuilderTests {
 
     private let utc = TimeZone(identifier: "UTC")!
 
-    private func titles(_ store: IndicatorStore, refreshPending: PendingRefresh? = nil) -> [String] {
+    private func titles(_ store: IndicatorStore, refreshPending: PendingRefresh? = nil) -> [String]
+    {
         items(store, refreshPending: refreshPending).map(\.title)
     }
 
-    private func items(_ store: IndicatorStore, refreshPending: PendingRefresh? = nil) -> [NSMenuItem] {
+    private func items(_ store: IndicatorStore, refreshPending: PendingRefresh? = nil)
+        -> [NSMenuItem]
+    {
         MenuBuilder.menu(
             store: store,
             target: NSApp,
@@ -46,12 +50,16 @@ struct MenuBuilderTests {
         weekResetsIn: TimeInterval = 0
     ) -> IndicatorStore {
         let store = IndicatorStore()
-        store.apply(.samples(
-            session: UsageSample(percent: sessionPercent, resetsAt: now.addingTimeInterval(sessionResetsIn)),
-            week: weekPercent.map { UsageSample(percent: $0, resetsAt: now.addingTimeInterval(weekResetsIn)) },
-            asOf: now,
-            tokenExpiresAt: now.addingTimeInterval(7200)
-        ))
+        store.apply(
+            .samples(
+                session: UsageSample(
+                    percent: sessionPercent, resetsAt: now.addingTimeInterval(sessionResetsIn)),
+                week: weekPercent.map {
+                    UsageSample(percent: $0, resetsAt: now.addingTimeInterval(weekResetsIn))
+                },
+                asOf: now,
+                tokenExpiresAt: now.addingTimeInterval(7200)
+            ))
         store.revalidate(now: now)
         return store
     }
@@ -72,7 +80,9 @@ struct MenuBuilderTests {
         #expect(row?.action == nil)
     }
 
-    @Test("The row shows the rate limit for as long as it lasts, whether or not anyone asked to refresh")
+    @Test(
+        "The row shows the rate limit for as long as it lasts, whether or not anyone asked to refresh"
+    )
     func rowFollowsTheRateLimitNotTheRequest() {
         // The endpoint's limit outlives any one request, so the row must
         // not depend on somebody having clicked.
@@ -158,7 +168,8 @@ struct MenuBuilderTests {
     func distantResetNamesItsWeekday() {
         // Past half a day a bare time no longer says which day it falls
         // on, which is precisely the question a weekly window raises.
-        let store = store(sessionPercent: 25, sessionResetsIn: 3600, weekPercent: 20, weekResetsIn: 2 * 86_400)
+        let store = store(
+            sessionPercent: 25, sessionResetsIn: 3600, weekPercent: 20, weekResetsIn: 2 * 86_400)
         #expect(titles(store).contains("Week: 20%, resets on Wednesday at 12:00 (in 2 days)"))
     }
 
@@ -188,12 +199,13 @@ struct MenuBuilderTests {
         #expect(mondayNoon.timeIntervalSince(saturdayNoon) == 47 * 3600)
 
         let store = IndicatorStore()
-        store.apply(.samples(
-            session: UsageSample(percent: 25, resetsAt: saturdayNoon.addingTimeInterval(3600)),
-            week: UsageSample(percent: 20, resetsAt: mondayNoon),
-            asOf: saturdayNoon,
-            tokenExpiresAt: mondayNoon.addingTimeInterval(3600)
-        ))
+        store.apply(
+            .samples(
+                session: UsageSample(percent: 25, resetsAt: saturdayNoon.addingTimeInterval(3600)),
+                week: UsageSample(percent: 20, resetsAt: mondayNoon),
+                asOf: saturdayNoon,
+                tokenExpiresAt: mondayNoon.addingTimeInterval(3600)
+            ))
         store.revalidate(now: saturdayNoon)
 
         func weekRow(in timeZone: TimeZone) -> String? {

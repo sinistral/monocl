@@ -67,8 +67,9 @@ enum MenuBarIcon {
             let centre = NSPoint(x: inset + glyphDiameter / 2, y: rect.midY)
             draw(ring: spec.session, at: centre)
             draw(pie: spec.week, at: centre)
-            draw(dot: spec.platform,
-                 at: NSPoint(x: centre.x + glyphDiameter / 2 + platformGap, y: rect.midY))
+            draw(
+                dot: spec.platform,
+                at: NSPoint(x: centre.x + glyphDiameter / 2 + platformGap, y: rect.midY))
             return true
         }
         image.isTemplate = spec.isTemplate
@@ -79,13 +80,16 @@ enum MenuBarIcon {
     // MARK: - Parts
 
     private static func draw(ring gauge: GaugeSpec, at centre: NSPoint) {
-        strokeArc(at: centre, radius: ringRadius, width: ringWidth,
-                  sweep: 360, color: trackColor)
+        strokeArc(
+            at: centre, radius: ringRadius, width: ringWidth,
+            sweep: 360, color: trackColor)
         if let fraction = gauge.fraction, fraction > 0 {
-            strokeArc(at: centre, radius: ringRadius, width: ringWidth,
-                      sweep: 360 * fraction, color: color(for: gauge.tint))
+            strokeArc(
+                at: centre, radius: ringRadius, width: ringWidth,
+                sweep: 360 * fraction, color: color(for: gauge.tint))
         }
-        cut(gauge.breachMarks, at: centre,
+        cut(
+            gauge.breachMarks, at: centre,
             from: ringRadius - ringWidth / 2 - 0.5,
             to: ringRadius + ringWidth / 2 + 0.5)
     }
@@ -93,17 +97,19 @@ enum MenuBarIcon {
     private static func draw(pie gauge: GaugeSpec, at centre: NSPoint) {
         fillDisc(at: centre, radius: pieRadius, color: trackColor)
         if let fraction = gauge.fraction, fraction > 0 {
-            fillWedge(at: centre, radius: pieRadius, sweep: 360 * fraction,
-                      color: color(for: gauge.tint))
+            fillWedge(
+                at: centre, radius: pieRadius, sweep: 360 * fraction,
+                color: color(for: gauge.tint))
         }
         cut(gauge.breachMarks, at: centre, from: 0, to: pieRadius + 0.5)
     }
 
     private static func draw(dot: DotSpec, at centre: NSPoint) {
         switch dot.fill {
-        case let .ring(faint):
-            strokeCircle(at: centre, radius: platformRingRadius,
-                         width: faint ? 1 : 1.5, color: color(for: dot.tint))
+        case .ring(let faint):
+            strokeCircle(
+                at: centre, radius: platformRingRadius,
+                width: faint ? 1 : 1.5, color: color(for: dot.tint))
         case .filled:
             fillDisc(at: centre, radius: platformDiscRadius, color: color(for: dot.tint))
         }
@@ -117,8 +123,10 @@ enum MenuBarIcon {
     /// colour would be a smear of the wrong one; and a template image
     /// takes its tint from the alpha channel, which is what the cut
     /// leaves behind.
-    private static func cut(_ count: Int, at centre: NSPoint,
-                            from innerRadius: CGFloat, to outerRadius: CGFloat) {
+    private static func cut(
+        _ count: Int, at centre: NSPoint,
+        from innerRadius: CGFloat, to outerRadius: CGFloat
+    ) {
         // `cut` is only called from inside the `NSImage` drawing handler in
         // `image(for:)`, where AppKit guarantees a current context, so the
         // `context` half of this guard is unreachable, not a fallback path.
@@ -128,10 +136,14 @@ enum MenuBarIcon {
         for degrees in markAngles.prefix(count) {
             let radians = degrees * .pi / 180
             let path = NSBezierPath()
-            path.move(to: NSPoint(x: centre.x + cos(radians) * innerRadius,
-                                  y: centre.y + sin(radians) * innerRadius))
-            path.line(to: NSPoint(x: centre.x + cos(radians) * outerRadius,
-                                  y: centre.y + sin(radians) * outerRadius))
+            path.move(
+                to: NSPoint(
+                    x: centre.x + cos(radians) * innerRadius,
+                    y: centre.y + sin(radians) * innerRadius))
+            path.line(
+                to: NSPoint(
+                    x: centre.x + cos(radians) * outerRadius,
+                    y: centre.y + sin(radians) * outerRadius))
             path.lineWidth = 1
             NSColor.black.setStroke()
             path.stroke()
@@ -141,21 +153,28 @@ enum MenuBarIcon {
 
     // MARK: - Primitives
 
-    private static func strokeArc(at centre: NSPoint, radius: CGFloat, width: CGFloat,
-                                  sweep: CGFloat, color: NSColor) {
+    private static func strokeArc(
+        at centre: NSPoint, radius: CGFloat, width: CGFloat,
+        sweep: CGFloat, color: NSColor
+    ) {
         let path = NSBezierPath()
-        path.appendArc(withCenter: centre, radius: radius,
-                       startAngle: 90, endAngle: 90 - sweep, clockwise: true)
+        path.appendArc(
+            withCenter: centre, radius: radius,
+            startAngle: 90, endAngle: 90 - sweep, clockwise: true)
         path.lineWidth = width
         path.lineCapStyle = .butt
         color.setStroke()
         path.stroke()
     }
 
-    private static func strokeCircle(at centre: NSPoint, radius: CGFloat,
-                                     width: CGFloat, color: NSColor) {
-        let path = NSBezierPath(ovalIn: NSRect(x: centre.x - radius, y: centre.y - radius,
-                                               width: radius * 2, height: radius * 2))
+    private static func strokeCircle(
+        at centre: NSPoint, radius: CGFloat,
+        width: CGFloat, color: NSColor
+    ) {
+        let path = NSBezierPath(
+            ovalIn: NSRect(
+                x: centre.x - radius, y: centre.y - radius,
+                width: radius * 2, height: radius * 2))
         path.lineWidth = width
         color.setStroke()
         path.stroke()
@@ -163,16 +182,22 @@ enum MenuBarIcon {
 
     private static func fillDisc(at centre: NSPoint, radius: CGFloat, color: NSColor) {
         color.setFill()
-        NSBezierPath(ovalIn: NSRect(x: centre.x - radius, y: centre.y - radius,
-                                    width: radius * 2, height: radius * 2)).fill()
+        NSBezierPath(
+            ovalIn: NSRect(
+                x: centre.x - radius, y: centre.y - radius,
+                width: radius * 2, height: radius * 2)
+        ).fill()
     }
 
-    private static func fillWedge(at centre: NSPoint, radius: CGFloat,
-                                  sweep: CGFloat, color: NSColor) {
+    private static func fillWedge(
+        at centre: NSPoint, radius: CGFloat,
+        sweep: CGFloat, color: NSColor
+    ) {
         let path = NSBezierPath()
         path.move(to: centre)
-        path.appendArc(withCenter: centre, radius: radius,
-                       startAngle: 90, endAngle: 90 - sweep, clockwise: true)
+        path.appendArc(
+            withCenter: centre, radius: radius,
+            startAngle: 90, endAngle: 90 - sweep, clockwise: true)
         path.close()
         color.setFill()
         path.fill()

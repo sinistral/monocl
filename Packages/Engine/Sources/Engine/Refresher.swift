@@ -71,14 +71,17 @@ final class Refresher {
             // cadence as well.
             var isFirstTick = true
             while let self, !Task.isCancelled {
-                let wait = isFirstTick ? firstWait : max(
-                    backoffInterval(
-                        base: self.interval(),
-                        consecutiveFailures: self.consecutiveFailures,
-                        retryAfter: self.retryAfter()
-                    ),
-                    self.spacingRemaining(now: self.time.now)
-                )
+                let wait =
+                    isFirstTick
+                    ? firstWait
+                    : max(
+                        backoffInterval(
+                            base: self.interval(),
+                            consecutiveFailures: self.consecutiveFailures,
+                            retryAfter: self.retryAfter()
+                        ),
+                        self.spacingRemaining(now: self.time.now)
+                    )
                 isFirstTick = false
 
                 if wait > 0 {

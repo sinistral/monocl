@@ -37,10 +37,11 @@ public struct UsageWindow: Sendable, Equatable, Decodable {
             formatter.dateFormat = format
             if let date = formatter.date(from: text) { return date }
         }
-        throw DecodingError.dataCorrupted(DecodingError.Context(
-            codingPath: path,
-            debugDescription: "resets_at is not an ISO-8601 timestamp: \(text)"
-        ))
+        throw DecodingError.dataCorrupted(
+            DecodingError.Context(
+                codingPath: path,
+                debugDescription: "resets_at is not an ISO-8601 timestamp: \(text)"
+            ))
     }
 }
 

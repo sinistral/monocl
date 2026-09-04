@@ -1,22 +1,26 @@
 import Foundation
 import Indicators
 import Testing
+
 @testable import PlatformStatus
 
 @Suite("Platform status mapping")
 struct StatusMappingTests {
     private func fixture(_ name: String) throws -> SummaryResponse {
-        let url = try #require(Bundle.module.url(
-            forResource: name, withExtension: "json", subdirectory: "Fixtures"
-        ))
+        let url = try #require(
+            Bundle.module.url(
+                forResource: name, withExtension: "json", subdirectory: "Fixtures"
+            ))
         return try JSONDecoder().decode(SummaryResponse.self, from: Data(contentsOf: url))
     }
 
-    @Test("Indicators map to states", arguments: [
-        ("status-none", IndicatorState.nominal, "All Systems Operational"),
-        ("status-minor", IndicatorState.warning, "Elevated error rates on the API"),
-        ("status-major", IndicatorState.critical, "Claude is unavailable"),
-    ])
+    @Test(
+        "Indicators map to states",
+        arguments: [
+            ("status-none", IndicatorState.nominal, "All Systems Operational"),
+            ("status-minor", IndicatorState.warning, "Elevated error rates on the API"),
+            ("status-major", IndicatorState.critical, "Claude is unavailable"),
+        ])
     func mapping(name: String, expected: IndicatorState, description: String) throws {
         let r = try fixture(name)
         #expect(r.indicatorState == expected)

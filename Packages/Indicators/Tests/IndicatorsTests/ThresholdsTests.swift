@@ -1,4 +1,5 @@
 import Testing
+
 @testable import Indicators
 
 @Suite("Threshold evaluation")
@@ -11,17 +12,19 @@ struct ThresholdsTests {
         #expect(t.critical == 90)
     }
 
-    @Test("Boundaries are inclusive", arguments: [
-        (0.0, IndicatorState.nominal),
-        (74.9, IndicatorState.nominal),
-        (75.0, IndicatorState.warning),
-        (75.1, IndicatorState.warning),
-        (89.9, IndicatorState.warning),
-        (90.0, IndicatorState.critical),
-        (90.1, IndicatorState.critical),
-        (100.0, IndicatorState.critical),
-        (120.0, IndicatorState.critical),
-    ])
+    @Test(
+        "Boundaries are inclusive",
+        arguments: [
+            (0.0, IndicatorState.nominal),
+            (74.9, IndicatorState.nominal),
+            (75.0, IndicatorState.warning),
+            (75.1, IndicatorState.warning),
+            (89.9, IndicatorState.warning),
+            (90.0, IndicatorState.critical),
+            (90.1, IndicatorState.critical),
+            (100.0, IndicatorState.critical),
+            (120.0, IndicatorState.critical),
+        ])
     func boundaries(percent: Double, expected: IndicatorState) {
         #expect(t.state(forPercent: percent) == expected)
     }

@@ -1,4 +1,5 @@
 import Foundation
+
 @testable import Engine
 
 /// A fixed origin, so every expectation in the suite is an offset from
@@ -78,7 +79,9 @@ final class TestTimeSource: TimeSource {
     /// passes, in deadline order.
     func advance(by duration: TimeInterval) async {
         let target = now.addingTimeInterval(duration)
-        while let next = sleepers.filter({ $0.deadline <= target }).min(by: { $0.deadline < $1.deadline }) {
+        while let next = sleepers.filter({ $0.deadline <= target }).min(by: {
+            $0.deadline < $1.deadline
+        }) {
             now = next.deadline
             wake(id: next.id)
             await awaitReregistration(by: next.taskID, after: next.id)

@@ -1,4 +1,5 @@
 import Foundation
+
 @testable import PlatformStatus
 
 /// Counts calls so "the transport was used exactly once" can be
@@ -17,8 +18,8 @@ final class FakeStatusFetcher: StatusFetching, @unchecked Sendable {
     func get(_ url: URL) async throws -> (Data, Int) {
         callCount += 1
         switch outcome {
-        case let .response(status, body): return (Data(body.utf8), status)
-        case let .failure(error): throw error
+        case .response(let status, let body): return (Data(body.utf8), status)
+        case .failure(let error): throw error
         }
     }
 }

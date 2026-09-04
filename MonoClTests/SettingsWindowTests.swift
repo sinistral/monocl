@@ -1,5 +1,6 @@
 import AppKit
 import Testing
+
 @testable import MonoCl
 
 @MainActor
@@ -93,7 +94,8 @@ struct SettingsWindowTests {
     @Test("The keyboard can close the window and quit the app")
     func installsKeyEquivalents() {
         let items = NSApp.mainMenu?.items.first?.submenu?.items ?? []
-        let shortcuts = Set(items.map { "\($0.keyEquivalent):\($0.action.map(NSStringFromSelector) ?? "")" })
+        let shortcuts = Set(
+            items.map { "\($0.keyEquivalent):\($0.action.map(NSStringFromSelector) ?? "")" })
 
         // Containment rather than equality: AppKit adds a hidden
         // option-W "Close All" of its own to any menu carrying a Close,

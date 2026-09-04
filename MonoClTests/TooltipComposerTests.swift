@@ -2,6 +2,7 @@
 import Foundation
 import Indicators
 import Testing
+
 @testable import MonoCl
 
 @Suite("Tooltip composition")
@@ -113,11 +114,12 @@ struct TooltipComposerTests {
             now: now,
             timeZone: utc
         )
-        #expect(text.split(separator: "\n").map(String.init) == [
-            "Session: 19%, resets in 4 hours",
-            "Week: 3%, resets in 6 days",
-            "Platform: All Systems Operational",
-        ])
+        #expect(
+            text.split(separator: "\n").map(String.init) == [
+                "Session: 19%, resets in 4 hours",
+                "Week: 3%, resets in 6 days",
+                "Platform: All Systems Operational",
+            ])
     }
 
     @Test("A failure detail is shown verbatim")

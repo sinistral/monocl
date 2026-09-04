@@ -167,7 +167,7 @@ public final class Engine {
     private func pollUsage() async -> Bool {
         guard !store.usagePollingStopped else { return true }
         let outcome = await usage.fetch(now: time.now)
-        if case let .failure(.rateLimited(retryAfter)) = outcome {
+        if case .failure(.rateLimited(let retryAfter)) = outcome {
             rateLimitedUntil = retryAfter.map { time.now.addingTimeInterval($0) }
         } else {
             rateLimitedUntil = nil

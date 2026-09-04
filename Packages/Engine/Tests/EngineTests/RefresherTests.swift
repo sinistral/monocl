@@ -1,6 +1,7 @@
 // Packages/Engine/Tests/EngineTests/RefresherTests.swift
 import Foundation
 import Testing
+
 @testable import Engine
 
 /// Signals each invocation over an `AsyncStream` so a test can await a
@@ -97,7 +98,9 @@ struct RefresherTests {
         #expect(spy.callCount == 4)
     }
 
-    @Test("Consecutive failures lengthen the interval, so fewer ticks land in a fixed window than a run of successes")
+    @Test(
+        "Consecutive failures lengthen the interval, so fewer ticks land in a fixed window than a run of successes"
+    )
     func failuresLengthenTheInterval() async {
         let time = TestTimeSource(now: origin)
         let failing = TickSpy { false }
@@ -132,7 +135,10 @@ struct RefresherTests {
     func successResetsCount() async {
         let time = TestTimeSource(now: origin)
         var attempt = 0
-        let recovers = TickSpy { attempt += 1; return attempt > 3 }
+        let recovers = TickSpy {
+            attempt += 1
+            return attempt > 3
+        }
         let staysFailed = TickSpy { false }
         let a = Refresher(
             interval: { 300 }, minimumSpacing: 0, time: time

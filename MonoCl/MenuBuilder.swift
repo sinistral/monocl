@@ -94,10 +94,11 @@ enum MenuBuilder {
         }
 
         if let refreshPending {
-            let title = switch refreshPending {
-            case .refreshing: "Refreshing…"
-            case .rateLimited: "Waiting out the rate limit"
-            }
+            let title =
+                switch refreshPending {
+                case .refreshing: "Refreshing…"
+                case .rateLimited: "Waiting out the rate limit"
+                }
             // No action, so AppKit disables it: the refresh is already
             // scheduled and asking again cannot bring it forward.
             let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")

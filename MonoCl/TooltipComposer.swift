@@ -36,8 +36,11 @@ enum TooltipComposer {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         return [
-            line(label: "Session", reading: session, resetsAt: sessionResetsAt, now: now, calendar: calendar),
-            line(label: "Week", reading: week, resetsAt: weekResetsAt, now: now, calendar: calendar),
+            line(
+                label: "Session", reading: session, resetsAt: sessionResetsAt, now: now,
+                calendar: calendar),
+            line(
+                label: "Week", reading: week, resetsAt: weekResetsAt, now: now, calendar: calendar),
             line(label: "Platform", reading: platform, resetsAt: nil, now: now, calendar: calendar),
         ].joined(separator: "\n")
     }

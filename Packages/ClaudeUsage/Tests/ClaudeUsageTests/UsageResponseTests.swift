@@ -1,13 +1,15 @@
 import Foundation
 import Testing
+
 @testable import ClaudeUsage
 
 @Suite("Usage response decoding")
 struct UsageResponseTests {
     private func fixture(_ name: String) throws -> UsageResponse {
-        let url = try #require(Bundle.module.url(
-            forResource: name, withExtension: "json", subdirectory: "Fixtures"
-        ))
+        let url = try #require(
+            Bundle.module.url(
+                forResource: name, withExtension: "json", subdirectory: "Fixtures"
+            ))
         return try JSONDecoder().decode(UsageResponse.self, from: Data(contentsOf: url))
     }
 
@@ -58,9 +60,10 @@ struct UsageResponseTests {
 
     @Test("An unparseable timestamp throws rather than yielding a wrong date")
     func badTimestamp() throws {
-        let url = try #require(Bundle.module.url(
-            forResource: "usage-bad-timestamp", withExtension: "json", subdirectory: "Fixtures"
-        ))
+        let url = try #require(
+            Bundle.module.url(
+                forResource: "usage-bad-timestamp", withExtension: "json", subdirectory: "Fixtures"
+            ))
         #expect(throws: DecodingError.self) {
             _ = try JSONDecoder().decode(UsageResponse.self, from: Data(contentsOf: url))
         }

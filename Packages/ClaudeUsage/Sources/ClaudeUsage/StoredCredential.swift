@@ -32,8 +32,9 @@ public struct StoredCredential: Sendable, Decodable {
     /// Values past this threshold cannot plausibly be seconds — 10^11
     /// seconds is the year 5138 — so they are milliseconds.
     static func date(fromEpoch raw: Double) -> Date {
-        raw > 100_000_000_000 ? Date(timeIntervalSince1970: raw / 1000)
-                              : Date(timeIntervalSince1970: raw)
+        raw > 100_000_000_000
+            ? Date(timeIntervalSince1970: raw / 1000)
+            : Date(timeIntervalSince1970: raw)
     }
 }
 
