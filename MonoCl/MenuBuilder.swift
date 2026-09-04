@@ -18,7 +18,9 @@ enum MenuBuilder {
         store: IndicatorStore,
         target: AnyObject,
         actions: Actions,
-        refreshPending: PendingRefresh?
+        refreshPending: PendingRefresh?,
+        timeZone: TimeZone = .current,
+        now: Date = .now
     ) -> NSMenu {
         let menu = NSMenu()
         populate(
@@ -26,7 +28,9 @@ enum MenuBuilder {
             store: store,
             target: target,
             actions: actions,
-            refreshPending: refreshPending
+            refreshPending: refreshPending,
+            timeZone: timeZone,
+            now: now
         )
         return menu
     }
@@ -40,16 +44,24 @@ enum MenuBuilder {
         store: IndicatorStore,
         target: AnyObject,
         actions: Actions,
-        refreshPending: PendingRefresh?
+        refreshPending: PendingRefresh?,
+        timeZone: TimeZone = .current,
+        now: Date = .now
     ) {
         menu.removeAllItems()
 
-        for (label, reading) in [
-            ("Session", store.session),
-            ("Week", store.week),
-            ("Platform", store.platform),
+        for (label, reading, resetsAt) in [
+            ("Session", store.session, store.sessionResetsAt),
+            ("Week", store.week, store.weekResetsAt),
+            ("Platform", store.platform, nil),
         ] {
             var detail = reading.state == .unknown ? "— \(reading.detail)" : reading.detail
+            // A reading MonoCl cannot vouch for says nothing about when
+            // its window turns over: the sample the reset came from is
+            // the one being disbelieved.
+            if reading.state != .unknown, let resetsAt {
+                detail += ", resets \(resetPhrase(resetsAt, timeZone: timeZone, now: now))"
+            }
             if let note = reading.note {
                 detail += " · \(note)"
             }
@@ -84,5 +96,24 @@ enum MenuBuilder {
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit MonoCl", action: actions.quit, keyEquivalent: "q")
             .target = target
+    }
+
+    /// The menu has room the tooltip does not, so it gives the reset
+    /// both ways: the clock time to plan around, and the interval that
+    /// answers "how long have I got" without arithmetic.
+    private static func resetPhrase(_ date: Date, timeZone: TimeZone, now: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeZone = timeZone
+        // Every other word in this menu is hard-coded English, so a
+        // weekday translated by the user's locale would read as the odd
+        // one out; en_US_POSIX also makes the fixed pattern literal
+        // rather than subject to the locale's own clock conventions.
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        // Within the next 12 hours a bare time is unambiguous; beyond
+        // that the weekday is needed for the weekly window to make sense.
+        let near = date.timeIntervalSince(now) < 12 * 3600
+        formatter.dateFormat = near ? "HH:mm" : "EEEE' at 'HH:mm"
+        let when = formatter.string(from: date)
+        return "\(near ? "at " : "on ")\(when) (in \(RelativeTime.describe(date, from: now)))"
     }
 }
