@@ -1,7 +1,9 @@
 # MonoCl
 
 > | ˈmɒnəkl |
+>
 > noun 
+>
 >   a single eyeglass
 
 A macOS menu bar app that shows your Claude usage at a glance: how much
