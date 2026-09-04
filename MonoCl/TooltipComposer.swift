@@ -12,6 +12,14 @@ import Indicators
 /// glance and is the narrower of the two surfaces, and "how long have I
 /// got" is the question a glance is asking; the menu, which is opened
 /// deliberately, carries the clock time as well.
+///
+/// Labels are punctuated rather than padded into columns.  Padding with
+/// spaces only lines up in a monospaced font, and a tooltip is drawn in
+/// a proportional one — so the columns drifted apart exactly when the
+/// values differed in width, which is whenever there was anything to
+/// compare.  A colon aligns nothing and pretends to align nothing, and
+/// it gives the platform row the separator a reset time was otherwise
+/// supplying to the other two.
 enum TooltipComposer {
     static func tooltip(
         session: Reading,
@@ -41,16 +49,15 @@ enum TooltipComposer {
         now: Date,
         calendar: Calendar
     ) -> String {
-        let padded = label.padding(toLength: 9, withPad: " ", startingAt: 0)
         guard reading.state != .unknown else {
-            return "\(padded)—  \(reading.detail)"
+            return "\(label): — \(reading.detail)"
         }
-        var text = "\(padded)\(reading.detail)"
+        var text = "\(label): \(reading.detail)"
         if let resetsAt {
-            text += "  ·  resets in \(RelativeTime.describe(resetsAt, from: now, calendar: calendar))"
+            text += ", resets in \(RelativeTime.describe(resetsAt, from: now, calendar: calendar))"
         }
         if let note = reading.note {
-            text += "  ·  \(note)"
+            text += " · \(note)"
         }
         return text
     }

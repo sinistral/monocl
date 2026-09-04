@@ -77,7 +77,7 @@ struct TooltipComposerTests {
             timeZone: utc
         )
         let second = String(text.split(separator: "\n")[1])
-        #expect(second == "Week     20%  ·  resets in 1 day")
+        #expect(second == "Week: 20%, resets in 1 day")
     }
 
     @Test("An unknown reading shows an em dash and no percentage")
@@ -95,6 +95,29 @@ struct TooltipComposerTests {
         #expect(first.contains("—"))
         #expect(first.contains("no recent reading"))
         #expect(first.contains("%") == false)
+    }
+
+    @Test("Every row separates its label from its value the same way")
+    func rowsArePunctuatedAlike() {
+        // The platform row carries no reset time, so before this it was
+        // the one row with nothing between label and value -- it read as
+        // a run-on beside the two above it.  Punctuating the label makes
+        // the three consistent without depending on a font that lines
+        // columns up, which a tooltip's is not.
+        let text = TooltipComposer.tooltip(
+            session: reading(.nominal, "19%"),
+            week: reading(.nominal, "3%"),
+            platform: reading(.nominal, "All Systems Operational"),
+            sessionResetsAt: now.addingTimeInterval(4 * 3600),
+            weekResetsAt: now.addingTimeInterval(6 * 86_400),
+            now: now,
+            timeZone: utc
+        )
+        #expect(text.split(separator: "\n").map(String.init) == [
+            "Session: 19%, resets in 4 hours",
+            "Week: 3%, resets in 6 days",
+            "Platform: All Systems Operational",
+        ])
     }
 
     @Test("A failure detail is shown verbatim")
@@ -123,6 +146,6 @@ struct TooltipComposerTests {
             timeZone: utc
         )
         let first = String(text.split(separator: "\n")[0])
-        #expect(first == "Session  95%  ·  resets in 1 hour  ·  Offline")
+        #expect(first == "Session: 95%, resets in 1 hour · Offline")
     }
 }
