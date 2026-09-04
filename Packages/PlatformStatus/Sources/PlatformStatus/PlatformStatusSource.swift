@@ -96,7 +96,8 @@ public struct PlatformStatusSource: Sendable {
             // `status.description`), and this fetch sends no
             // credential, so a `DecodingError` here can only name
             // those fields.
-            logger.error("Status response did not decode: \(String(describing: error), privacy: .public)")
+            logger.error(
+                "Status response did not decode: \(String(describing: error), privacy: .public)")
             return .failure(.unexpectedResponse)
         } catch {
             return .failure(.unexpectedResponse)

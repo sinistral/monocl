@@ -1,6 +1,7 @@
 // Packages/Engine/Tests/EngineTests/RefresherTests.swift
 import Foundation
 import Testing
+
 @testable import Engine
 
 /// Signals each invocation over an `AsyncStream` so a test can await a
@@ -51,7 +52,7 @@ private final class Gate {
         isOpen = true
         let waiting = continuations
         continuations = []
-        waiting.forEach { $0.resume() }
+        for continuation in waiting { continuation.resume() }
     }
 }
 
@@ -81,8 +82,8 @@ struct RefresherTests {
         let time = TestTimeSource(now: origin)
         let spy = TickSpy { false }
         let refresher = Refresher(
-            interval: { 300 }, minimumSpacing: 0, time: time
-        ) { await spy.tick() }
+            interval: { 300 }, minimumSpacing: 0, time: time,
+            tick: { await spy.tick() })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
@@ -97,17 +98,19 @@ struct RefresherTests {
         #expect(spy.callCount == 4)
     }
 
-    @Test("Consecutive failures lengthen the interval, so fewer ticks land in a fixed window than a run of successes")
+    @Test(
+        "Consecutive failures lengthen the interval, so fewer ticks land in a fixed window than a run of successes"
+    )
     func failuresLengthenTheInterval() async {
         let time = TestTimeSource(now: origin)
         let failing = TickSpy { false }
         let succeeding = TickSpy { true }
         let a = Refresher(
-            interval: { 300 }, minimumSpacing: 0, time: time
-        ) { await failing.tick() }
+            interval: { 300 }, minimumSpacing: 0, time: time,
+            tick: { await failing.tick() })
         let b = Refresher(
-            interval: { 300 }, minimumSpacing: 0, time: time
-        ) { await succeeding.tick() }
+            interval: { 300 }, minimumSpacing: 0, time: time,
+            tick: { await succeeding.tick() })
 
         a.start()
         b.start()
@@ -132,14 +135,17 @@ struct RefresherTests {
     func successResetsCount() async {
         let time = TestTimeSource(now: origin)
         var attempt = 0
-        let recovers = TickSpy { attempt += 1; return attempt > 3 }
+        let recovers = TickSpy {
+            attempt += 1
+            return attempt > 3
+        }
         let staysFailed = TickSpy { false }
         let a = Refresher(
-            interval: { 300 }, minimumSpacing: 0, time: time
-        ) { await recovers.tick() }
+            interval: { 300 }, minimumSpacing: 0, time: time,
+            tick: { await recovers.tick() })
         let b = Refresher(
-            interval: { 300 }, minimumSpacing: 0, time: time
-        ) { await staysFailed.tick() }
+            interval: { 300 }, minimumSpacing: 0, time: time,
+            tick: { await staysFailed.tick() })
 
         a.start()
         b.start()
@@ -165,11 +171,11 @@ struct RefresherTests {
         let refreshedSpy = TickSpy { false }
         let baselineSpy = TickSpy { false }
         let refreshed = Refresher(
-            interval: { 300 }, minimumSpacing: 0, time: time
-        ) { await refreshedSpy.tick() }
+            interval: { 300 }, minimumSpacing: 0, time: time,
+            tick: { await refreshedSpy.tick() })
         let baseline = Refresher(
-            interval: { 300 }, minimumSpacing: 0, time: time
-        ) { await baselineSpy.tick() }
+            interval: { 300 }, minimumSpacing: 0, time: time,
+            tick: { await baselineSpy.tick() })
 
         refreshed.start()
         baseline.start()
@@ -213,8 +219,8 @@ struct RefresherTests {
         let time = TestTimeSource(now: origin)
         let spy = TickSpy { true }
         let refresher = Refresher(
-            interval: { 60 }, minimumSpacing: spacing, time: time
-        ) { await spy.tick() }
+            interval: { 60 }, minimumSpacing: spacing, time: time,
+            tick: { await spy.tick() })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
@@ -245,8 +251,8 @@ struct RefresherTests {
         // through, so the second tick can only come from the deferred
         // trigger.
         let refresher = Refresher(
-            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time
-        ) { await spy.tick() }
+            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time,
+            tick: { await spy.tick() })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
@@ -271,8 +277,8 @@ struct RefresherTests {
         let time = TestTimeSource(now: origin)
         let spy = TickSpy { true }
         let refresher = Refresher(
-            interval: { 60 }, minimumSpacing: spacing, time: time
-        ) { await spy.tick() }
+            interval: { 60 }, minimumSpacing: spacing, time: time,
+            tick: { await spy.tick() })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
@@ -290,8 +296,8 @@ struct RefresherTests {
         let time = TestTimeSource(now: origin)
         let spy = TickSpy { true }
         let refresher = Refresher(
-            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time
-        ) { await spy.tick() }
+            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time,
+            tick: { await spy.tick() })
 
         // Nothing defers this one — it is the first — but it is still a
         // fetch somebody asked for, and it is about to be in flight.
@@ -308,8 +314,8 @@ struct RefresherTests {
         let time = TestTimeSource(now: origin)
         let spy = TickSpy { true }
         let refresher = Refresher(
-            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time
-        ) { await spy.tick() }
+            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time,
+            tick: { await spy.tick() })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
@@ -324,8 +330,8 @@ struct RefresherTests {
         let time = TestTimeSource(now: origin)
         let spy = TickSpy { true }
         let refresher = Refresher(
-            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time
-        ) { await spy.tick() }
+            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time,
+            tick: { await spy.tick() })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
@@ -343,8 +349,8 @@ struct RefresherTests {
         let time = TestTimeSource(now: origin)
         let spy = TickSpy { true }
         let refresher = Refresher(
-            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time
-        ) { await spy.tick() }
+            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time,
+            tick: { await spy.tick() })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
@@ -365,15 +371,15 @@ struct RefresherTests {
         var started = 0
         let gate = Gate()
         let refresher = Refresher(
-            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time
-        ) {
-            started += 1
-            signal.yield(started)
-            // The first fetch runs straight through; the announced one is
-            // held so the assertion below lands while it is in flight.
-            if started > 1 { await gate.wait() }
-            return await spy.tick()
-        }
+            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time,
+            tick: {
+                started += 1
+                signal.yield(started)
+                // The first fetch runs straight through; the announced one is
+                // held so the assertion below lands while it is in flight.
+                if started > 1 { await gate.wait() }
+                return await spy.tick()
+            })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
@@ -402,13 +408,13 @@ struct RefresherTests {
         var started = 0
         let gate = Gate()
         let refresher = Refresher(
-            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time
-        ) {
-            started += 1
-            signal.yield(started)
-            if started > 1 { await gate.wait() }
-            return await spy.tick()
-        }
+            interval: { beyondTheWindow }, minimumSpacing: spacing, time: time,
+            tick: {
+                started += 1
+                signal.yield(started)
+                if started > 1 { await gate.wait() }
+                return await spy.tick()
+            })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
@@ -451,8 +457,8 @@ struct RefresherTests {
             interval: { beyondTheWindow },
             minimumSpacing: 0,
             time: time,
-            retryAfter: { retryAfter }
-        ) { await spy.tick() }
+            retryAfter: { retryAfter },
+            tick: { await spy.tick() })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)
@@ -477,8 +483,8 @@ struct RefresherTests {
         let time = TestTimeSource(now: origin)
         let spy = TickSpy { true }
         let refresher = Refresher(
-            interval: { 300 }, minimumSpacing: 0, time: time
-        ) { await spy.tick() }
+            interval: { 300 }, minimumSpacing: 0, time: time,
+            tick: { await spy.tick() })
 
         refresher.start()
         await waitForTicks(1, from: spy.ticks)

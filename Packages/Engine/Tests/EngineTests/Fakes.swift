@@ -4,6 +4,7 @@ import Indicators
 import PlatformStatus
 import Synchronization
 import Testing
+
 @testable import Engine
 
 /// Yields until `condition` holds, then settles the main actor.
@@ -87,7 +88,7 @@ final class ScriptedHTTP: HTTPFetching, Sendable {
     func get(_ url: URL, headers: [String: String]) async throws -> HTTPResult {
         let answer = answers[min(calls.increment(), answers.count - 1)]
         switch answer {
-        case let .response(status, body, retryAfter):
+        case .response(let status, let body, let retryAfter):
             return HTTPResult(status: status, body: Data(body.utf8), retryAfter: retryAfter)
         case .offline:
             throw URLError(.notConnectedToInternet)
@@ -147,11 +148,11 @@ func validCredential() throws -> StubCredentials {
 
 /// Session 47%, week 62%, both windows resetting well after `origin`.
 let usageBody = """
-{
-  "five_hour": { "utilization": 47.0, "resets_at": "2026-08-31T17:50:00.568709+00:00" },
-  "seven_day": { "utilization": 62.0, "resets_at": "2026-09-04T15:00:00.568730+00:00" }
-}
-"""
+    {
+      "five_hour": { "utilization": 47.0, "resets_at": "2026-08-31T17:50:00.568709+00:00" },
+      "seven_day": { "utilization": 62.0, "resets_at": "2026-09-04T15:00:00.568730+00:00" }
+    }
+    """
 
 let statusBody = #"{ "status": { "indicator": "none", "description": "All Systems Operational" } }"#
 

@@ -34,18 +34,20 @@ public final class Engine {
         retryAfter: { [weak self] in
             guard let self else { return nil }
             return self.rateLimitRemaining(now: self.time.now)
+        },
+        tick: { [weak self] in
+            await self?.pollUsage() ?? false
         }
-    ) { [weak self] in
-        await self?.pollUsage() ?? false
-    }
+    )
 
     private lazy var statusRefresher = Refresher(
         interval: { [settings] in settings().refreshInterval },
         minimumSpacing: EngineSettings.minimumRefreshInterval,
-        time: time
-    ) { [weak self] in
-        await self?.pollStatus() ?? false
-    }
+        time: time,
+        tick: { [weak self] in
+            await self?.pollStatus() ?? false
+        }
+    )
 
     /// When the endpoint's last `Retry-After` elapses, held as an
     /// instant rather than a duration.  Scheduling only: what the MENU
@@ -167,7 +169,7 @@ public final class Engine {
     private func pollUsage() async -> Bool {
         guard !store.usagePollingStopped else { return true }
         let outcome = await usage.fetch(now: time.now)
-        if case let .failure(.rateLimited(retryAfter)) = outcome {
+        if case .failure(.rateLimited(let retryAfter)) = outcome {
             rateLimitedUntil = retryAfter.map { time.now.addingTimeInterval($0) }
         } else {
             rateLimitedUntil = nil

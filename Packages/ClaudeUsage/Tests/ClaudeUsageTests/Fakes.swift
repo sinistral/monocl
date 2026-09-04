@@ -1,4 +1,5 @@
 import Foundation
+
 @testable import ClaudeUsage
 
 final class FakeCredentialReader: CredentialReading, @unchecked Sendable {
@@ -22,9 +23,9 @@ final class FakeHTTP: HTTPFetching, @unchecked Sendable {
         callCount += 1
         lastHeaders = headers
         switch outcome {
-        case let .response(status, body, retryAfter):
+        case .response(let status, let body, let retryAfter):
             return HTTPResult(status: status, body: Data(body.utf8), retryAfter: retryAfter)
-        case let .failure(error):
+        case .failure(let error):
             throw error
         }
     }

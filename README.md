@@ -68,6 +68,18 @@ The suites are offline by construction. `Scripts/check-fixture-drift.sh`
 is the deliberate, manual check that the captured fixtures still match
 the live endpoints' shapes.
 
+Formatting is gated by `swift-format`, which ships inside the Xcode
+toolchain and so needs no separate install:
+
+```sh
+Scripts/check-format.sh        # report
+Scripts/check-format.sh --fix  # rewrite in place
+```
+
+`.swift-format` holds the configuration. It sets the indent to four
+spaces and takes every other rule from the tool's defaults, which are
+the Swift standard style.
+
 ## Why there is no App Store build, and no signed release
 
 MonoCl reads the OAuth access token that Claude Code stores in the macOS

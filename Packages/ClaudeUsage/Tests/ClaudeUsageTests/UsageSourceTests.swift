@@ -1,14 +1,15 @@
 import Foundation
 import Testing
+
 @testable import ClaudeUsage
 
 @Suite("Usage source orchestration")
 struct UsageSourceTests {
     private let now = Date(timeIntervalSince1970: 1_767_000_000)
     private let bothWindows = """
-    {"five_hour":{"utilization":47.0,"resets_at":"2026-08-31T17:50:00.568709+00:00"},
-     "seven_day":{"utilization":62.0,"resets_at":"2026-09-04T15:00:00.568730+00:00"}}
-    """
+        {"five_hour":{"utilization":47.0,"resets_at":"2026-08-31T17:50:00.568709+00:00"},
+         "seven_day":{"utilization":62.0,"resets_at":"2026-09-04T15:00:00.568730+00:00"}}
+        """
 
     private func source(
         credential result: Result<StoredCredential, CredentialError>,
@@ -36,7 +37,7 @@ struct UsageSourceTests {
         let s = source(credential: .success(try credential(expiresAt: expiry)), http: http)
 
         let outcome = await s.fetch(now: now)
-        guard case let .samples(session, week, asOf, tokenExpiresAt) = outcome else {
+        guard case .samples(let session, let week, let asOf, let tokenExpiresAt) = outcome else {
             Issue.record("expected samples, got \(outcome)")
             return
         }
@@ -53,11 +54,13 @@ struct UsageSourceTests {
         #expect(http.lastHeaders?["anthropic-beta"] == nil)
     }
 
-    @Test("HTTP statuses map to failures", arguments: [
-        (401, UsageFailure.authorizationRejected),
-        (403, UsageFailure.accessRefused),
-        (500, UsageFailure.unexpectedResponse),
-    ])
+    @Test(
+        "HTTP statuses map to failures",
+        arguments: [
+            (401, UsageFailure.authorizationRejected),
+            (403, UsageFailure.accessRefused),
+            (500, UsageFailure.unexpectedResponse),
+        ])
     func statusMapping(status: Int, expected: UsageFailure) async throws {
         let http = FakeHTTP(.response(status: status, body: "{}", retryAfter: nil))
         let s = source(
@@ -97,12 +100,14 @@ struct UsageSourceTests {
         #expect(await s.fetch(now: now) == .failure(.unexpectedResponse))
     }
 
-    @Test("Credential errors map through", arguments: [
-        (CredentialError.notFound, UsageFailure.credentialsNotFound),
-        (CredentialError.accessDenied, UsageFailure.keychainDenied),
-        (CredentialError.unexpected(-25291), UsageFailure.keychainUnavailable),
-        (CredentialError.malformed, UsageFailure.credentialsUnreadable),
-    ])
+    @Test(
+        "Credential errors map through",
+        arguments: [
+            (CredentialError.notFound, UsageFailure.credentialsNotFound),
+            (CredentialError.accessDenied, UsageFailure.keychainDenied),
+            (CredentialError.unexpected(-25291), UsageFailure.keychainUnavailable),
+            (CredentialError.malformed, UsageFailure.credentialsUnreadable),
+        ])
     func credentialErrors(error: CredentialError, expected: UsageFailure) async {
         let http = FakeHTTP(.response(status: 200, body: "{}", retryAfter: nil))
         let s = source(credential: .failure(error), http: http)
@@ -110,20 +115,22 @@ struct UsageSourceTests {
         #expect(http.callCount == 0)
     }
 
-    @Test("Whether a failure stops the poller, by case", arguments: [
-        (UsageFailure.credentialsNotFound, true),
-        (UsageFailure.keychainDenied, true),
-        (UsageFailure.credentialsUnreadable, true),
-        // A transient keychain failure may clear on its own, so it must
-        // keep polling rather than waiting for a manual retry.
-        (UsageFailure.keychainUnavailable, false),
-        (UsageFailure.tokenExpired, false),
-        (UsageFailure.offline, false),
-        (UsageFailure.authorizationRejected, false),
-        (UsageFailure.accessRefused, false),
-        (UsageFailure.rateLimited(retryAfter: nil), false),
-        (UsageFailure.unexpectedResponse, false),
-    ])
+    @Test(
+        "Whether a failure stops the poller, by case",
+        arguments: [
+            (UsageFailure.credentialsNotFound, true),
+            (UsageFailure.keychainDenied, true),
+            (UsageFailure.credentialsUnreadable, true),
+            // A transient keychain failure may clear on its own, so it must
+            // keep polling rather than waiting for a manual retry.
+            (UsageFailure.keychainUnavailable, false),
+            (UsageFailure.tokenExpired, false),
+            (UsageFailure.offline, false),
+            (UsageFailure.authorizationRejected, false),
+            (UsageFailure.accessRefused, false),
+            (UsageFailure.rateLimited(retryAfter: nil), false),
+            (UsageFailure.unexpectedResponse, false),
+        ])
     func stopsPolling(failure: UsageFailure, expected: Bool) {
         #expect(failure.stopsPolling == expected)
     }

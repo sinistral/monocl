@@ -1,8 +1,9 @@
+import ClaudeUsage
 import Foundation
 import Indicators
-import ClaudeUsage
 import PlatformStatus
 import Testing
+
 @testable import Engine
 
 @MainActor
@@ -65,12 +66,13 @@ struct IndicatorStoreTests {
     @Test("A passed window reset clears only that window")
     func passedWindowReset() {
         let s = store()
-        s.apply(.samples(
-            session: UsageSample(percent: 10, resetsAt: now.addingTimeInterval(60)),
-            week: UsageSample(percent: 20, resetsAt: now.addingTimeInterval(86_400)),
-            asOf: now,
-            tokenExpiresAt: now.addingTimeInterval(7200)
-        ))
+        s.apply(
+            .samples(
+                session: UsageSample(percent: 10, resetsAt: now.addingTimeInterval(60)),
+                week: UsageSample(percent: 20, resetsAt: now.addingTimeInterval(86_400)),
+                asOf: now,
+                tokenExpiresAt: now.addingTimeInterval(7200)
+            ))
         s.revalidate(now: now.addingTimeInterval(61))
         #expect(s.session.state == .unknown)
         #expect(s.week.state == .nominal)
@@ -85,18 +87,20 @@ struct IndicatorStoreTests {
         #expect(s.week.state == .unknown)
     }
 
-    @Test("Every failure either retains the sample or clears it, by case", arguments: [
-        (UsageFailure.offline, true),
-        (UsageFailure.rateLimited(retryAfter: nil), true),
-        (UsageFailure.credentialsNotFound, false),
-        (UsageFailure.keychainDenied, false),
-        (UsageFailure.keychainUnavailable, false),
-        (UsageFailure.credentialsUnreadable, false),
-        (UsageFailure.tokenExpired, false),
-        (UsageFailure.authorizationRejected, false),
-        (UsageFailure.accessRefused, false),
-        (UsageFailure.unexpectedResponse, false),
-    ])
+    @Test(
+        "Every failure either retains the sample or clears it, by case",
+        arguments: [
+            (UsageFailure.offline, true),
+            (UsageFailure.rateLimited(retryAfter: nil), true),
+            (UsageFailure.credentialsNotFound, false),
+            (UsageFailure.keychainDenied, false),
+            (UsageFailure.keychainUnavailable, false),
+            (UsageFailure.credentialsUnreadable, false),
+            (UsageFailure.tokenExpired, false),
+            (UsageFailure.authorizationRejected, false),
+            (UsageFailure.accessRefused, false),
+            (UsageFailure.unexpectedResponse, false),
+        ])
     func failureRetainsOrClears(failure: UsageFailure, retains: Bool) {
         let s = store()
         s.apply(samples(session: 95))
@@ -145,10 +149,11 @@ struct IndicatorStoreTests {
     @Test("Platform failures retain or clear the same way as usage failures")
     func platformFailureRetainsOrClears() {
         let s = store()
-        s.apply(StatusOutcome.sample(
-            StatusSample(state: .warning, description: "Elevated error rates"),
-            asOf: now
-        ))
+        s.apply(
+            StatusOutcome.sample(
+                StatusSample(state: .warning, description: "Elevated error rates"),
+                asOf: now
+            ))
         s.revalidate(now: now)
         #expect(s.platform.state == .warning)
 
@@ -185,10 +190,11 @@ struct IndicatorStoreTests {
     @Test("Platform status maps through")
     func platformStatus() {
         let s = store()
-        s.apply(StatusOutcome.sample(
-            StatusSample(state: .nominal, description: "All Systems Operational"),
-            asOf: now
-        ))
+        s.apply(
+            StatusOutcome.sample(
+                StatusSample(state: .nominal, description: "All Systems Operational"),
+                asOf: now
+            ))
         s.revalidate(now: now)
         #expect(s.platform.state == .nominal)
         #expect(s.platform.detail == "All Systems Operational")
@@ -198,10 +204,11 @@ struct IndicatorStoreTests {
     func wakeClears() {
         let s = store()
         s.apply(samples(session: 95))
-        s.apply(StatusOutcome.sample(
-            StatusSample(state: .nominal, description: "All Systems Operational"),
-            asOf: now
-        ))
+        s.apply(
+            StatusOutcome.sample(
+                StatusSample(state: .nominal, description: "All Systems Operational"),
+                asOf: now
+            ))
         s.revalidate(now: now)
         #expect(s.session.state == .critical)
 
@@ -219,13 +226,14 @@ struct IndicatorStoreTests {
     @Test("nextTrustExpiry is the earliest bound among trusted readings")
     func nextTrustExpiryIsEarliestAmongTrusted() {
         let s = store(staleAfter: 300)
-        s.apply(.samples(
-            // Session's own reset (now + 120) is its earliest bound.
-            session: UsageSample(percent: 10, resetsAt: now.addingTimeInterval(120)),
-            week: UsageSample(percent: 20, resetsAt: now.addingTimeInterval(86_400)),
-            asOf: now,
-            tokenExpiresAt: now.addingTimeInterval(7200)
-        ))
+        s.apply(
+            .samples(
+                // Session's own reset (now + 120) is its earliest bound.
+                session: UsageSample(percent: 10, resetsAt: now.addingTimeInterval(120)),
+                week: UsageSample(percent: 20, resetsAt: now.addingTimeInterval(86_400)),
+                asOf: now,
+                tokenExpiresAt: now.addingTimeInterval(7200)
+            ))
         s.revalidate(now: now)
         // Week's own bound (its age budget, now + 300) is later than
         // session's; platform has no sample and contributes nothing.
@@ -241,16 +249,18 @@ struct IndicatorStoreTests {
     @Test("The three states are reported in display order")
     func statesInDisplayOrder() {
         let s = store()
-        s.apply(.samples(
-            session: UsageSample(percent: 95, resetsAt: now.addingTimeInterval(3600)),
-            week: UsageSample(percent: 10, resetsAt: now.addingTimeInterval(86_400)),
-            asOf: now,
-            tokenExpiresAt: now.addingTimeInterval(7200)
-        ))
-        s.apply(StatusOutcome.sample(
-            StatusSample(state: .warning, description: "Elevated error rates"),
-            asOf: now
-        ))
+        s.apply(
+            .samples(
+                session: UsageSample(percent: 95, resetsAt: now.addingTimeInterval(3600)),
+                week: UsageSample(percent: 10, resetsAt: now.addingTimeInterval(86_400)),
+                asOf: now,
+                tokenExpiresAt: now.addingTimeInterval(7200)
+            ))
+        s.apply(
+            StatusOutcome.sample(
+                StatusSample(state: .warning, description: "Elevated error rates"),
+                asOf: now
+            ))
         s.revalidate(now: now)
 
         // Three DISTINGUISHABLE states, so a transposition fails rather
@@ -280,12 +290,13 @@ struct IndicatorStoreTests {
         let store = IndicatorStore()
         store.apply(UsageOutcome.failure(.rateLimited(retryAfter: 60)))
 
-        store.apply(.samples(
-            session: UsageSample(percent: 10, resetsAt: Date().addingTimeInterval(3600)),
-            week: nil,
-            asOf: .now,
-            tokenExpiresAt: Date().addingTimeInterval(3600)
-        ))
+        store.apply(
+            .samples(
+                session: UsageSample(percent: 10, resetsAt: Date().addingTimeInterval(3600)),
+                week: nil,
+                asOf: .now,
+                tokenExpiresAt: Date().addingTimeInterval(3600)
+            ))
         #expect(store.isUsageRateLimited == false)
 
         store.apply(UsageOutcome.failure(.offline))
@@ -316,10 +327,11 @@ struct IndicatorStoreTests {
     @Test("The platform reading carries no percentage")
     func platformReadingHasNoPercent() {
         let s = store()
-        s.apply(StatusOutcome.sample(
-            StatusSample(state: .nominal, description: "All Systems Operational"),
-            asOf: now
-        ))
+        s.apply(
+            StatusOutcome.sample(
+                StatusSample(state: .nominal, description: "All Systems Operational"),
+                asOf: now
+            ))
         s.revalidate(now: now)
         #expect(s.platform.state == .nominal)
         #expect(s.platform.percent == nil)

@@ -1,6 +1,7 @@
 // Packages/Indicators/Tests/IndicatorsTests/StalenessTests.swift
 import Foundation
 import Testing
+
 @testable import Indicators
 
 @Suite("Staleness rule")
@@ -29,10 +30,12 @@ struct StalenessTests {
 
     @Test("Fresh sample with live token and future reset is trusted")
     func freshAllConditions() {
-        #expect(isTrusted(inputs(
-            tokenExpiresAt: now.addingTimeInterval(3600),
-            windowResetsAt: now.addingTimeInterval(1800)
-        )) == true)
+        #expect(
+            isTrusted(
+                inputs(
+                    tokenExpiresAt: now.addingTimeInterval(3600),
+                    windowResetsAt: now.addingTimeInterval(1800)
+                )) == true)
     }
 
     @Test("Age alone can untrust")

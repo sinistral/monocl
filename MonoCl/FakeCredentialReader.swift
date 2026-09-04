@@ -60,8 +60,8 @@ import OSLog
 
         private func credential(expiringAt date: Date) throws -> StoredCredential {
             let json = """
-            {"accessToken":"fake-token","expiresAt":\(Int(date.timeIntervalSince1970))}
-            """
+                {"accessToken":"fake-token","expiresAt":\(Int(date.timeIntervalSince1970))}
+                """
             return try JSONDecoder().decode(StoredCredential.self, from: Data(json.utf8))
         }
     }

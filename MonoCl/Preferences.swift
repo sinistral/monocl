@@ -49,8 +49,13 @@ final class Preferences {
     }
 
     var refreshInterval: TimeInterval {
-        get { max(defaults.double(forKey: Key.refreshInterval), EngineSettings.minimumRefreshInterval) }
-        set { defaults.set(max(newValue, EngineSettings.minimumRefreshInterval), forKey: Key.refreshInterval) }
+        get {
+            max(defaults.double(forKey: Key.refreshInterval), EngineSettings.minimumRefreshInterval)
+        }
+        set {
+            defaults.set(
+                max(newValue, EngineSettings.minimumRefreshInterval), forKey: Key.refreshInterval)
+        }
     }
 
     /// Clamped on read to span at least two poll intervals, for the

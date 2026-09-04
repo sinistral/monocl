@@ -40,8 +40,8 @@ public enum UsageFailure: Error, Sendable, Equatable {
         case .credentialsNotFound, .keychainDenied, .credentialsUnreadable:
             true
         case .keychainUnavailable, .tokenExpired, .offline,
-             .authorizationRejected, .accessRefused, .rateLimited,
-             .unexpectedResponse:
+            .authorizationRejected, .accessRefused, .rateLimited,
+            .unexpectedResponse:
             false
         }
     }
@@ -55,8 +55,8 @@ public enum UsageFailure: Error, Sendable, Equatable {
         case .offline, .rateLimited:
             true
         case .credentialsNotFound, .keychainDenied, .keychainUnavailable,
-             .credentialsUnreadable, .tokenExpired, .authorizationRejected,
-             .accessRefused, .unexpectedResponse:
+            .credentialsUnreadable, .tokenExpired, .authorizationRejected,
+            .accessRefused, .unexpectedResponse:
             false
         }
     }
@@ -123,10 +123,12 @@ public struct UsageSource: Sendable {
             // Verified 2026-08-31: the endpoint returns 200 with and
             // without `anthropic-beta: oauth-2025-04-20`, so MonoCl does
             // not send a beta identifier it does not need.
-            result = try await http.get(Self.endpoint, headers: [
-                "Authorization": "Bearer \(credential.accessToken)",
-                "Content-Type": "application/json",
-            ])
+            result = try await http.get(
+                Self.endpoint,
+                headers: [
+                    "Authorization": "Bearer \(credential.accessToken)",
+                    "Content-Type": "application/json",
+                ])
         } catch is URLError {
             return .failure(.offline)
         } catch {
@@ -153,7 +155,8 @@ public struct UsageSource: Sendable {
                 // `resets_at`, so a `DecodingError` here can name only
                 // those fields or quote a malformed timestamp, never
                 // the bearer token carried in the request header.
-                logger.error("Usage response did not decode: \(String(describing: error), privacy: .public)")
+                logger.error(
+                    "Usage response did not decode: \(String(describing: error), privacy: .public)")
                 return .failure(.unexpectedResponse)
             }
         case 401: return .failure(.authorizationRejected)

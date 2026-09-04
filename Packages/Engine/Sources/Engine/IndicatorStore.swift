@@ -60,13 +60,13 @@ public final class IndicatorStore {
 
     public func apply(_ outcome: UsageOutcome) {
         switch outcome {
-        case let .samples(session, week, asOf, tokenExpiresAt):
+        case .samples(let session, let week, let asOf, let tokenExpiresAt):
             sessionSample = session
             weekSample = week
             usageAsOf = asOf
             self.tokenExpiresAt = tokenExpiresAt
             usageFailure = nil
-        case let .failure(failure):
+        case .failure(let failure):
             // A network error or a rate limit leaves the last good sample
             // in place until its own age budget expires; every other
             // failure clears it immediately.
@@ -83,11 +83,11 @@ public final class IndicatorStore {
 
     public func apply(_ outcome: StatusOutcome) {
         switch outcome {
-        case let .sample(sample, asOf):
+        case .sample(let sample, let asOf):
             statusSample = sample
             statusAsOf = asOf
             statusFailure = nil
-        case let .failure(failure):
+        case .failure(let failure):
             if !failure.retainsSample {
                 statusSample = nil
                 statusAsOf = nil
@@ -143,7 +143,9 @@ public final class IndicatorStore {
         }
         let inputs = statusTrustInputs(asOf: asOf, now: now)
         guard isTrusted(inputs) else { return .unknown(detail: detail, asOf: asOf) }
-        return Reading(state: sample.state, detail: sample.description, note: statusFailure?.menuText, asOf: asOf)
+        return Reading(
+            state: sample.state, detail: sample.description, note: statusFailure?.menuText,
+            asOf: asOf)
     }
 
     private func usageTrustInputs(asOf: Date, windowResetsAt: Date, now: Date) -> TrustInputs {
@@ -157,7 +159,8 @@ public final class IndicatorStore {
     }
 
     private func statusTrustInputs(asOf: Date, now: Date) -> TrustInputs {
-        TrustInputs(asOf: asOf, now: now, staleAfter: staleAfter, tokenExpiresAt: nil, windowResetsAt: nil)
+        TrustInputs(
+            asOf: asOf, now: now, staleAfter: staleAfter, tokenExpiresAt: nil, windowResetsAt: nil)
     }
 
     /// The earliest instant any CURRENTLY TRUSTED reading stops being
@@ -170,10 +173,14 @@ public final class IndicatorStore {
     func nextTrustExpiry(now: Date) -> Date? {
         var expiries: [Date] = []
         if session.state != .unknown, let sample = sessionSample, let asOf = usageAsOf {
-            expiries.append(trustExpiry(usageTrustInputs(asOf: asOf, windowResetsAt: sample.resetsAt, now: now)))
+            expiries.append(
+                trustExpiry(usageTrustInputs(asOf: asOf, windowResetsAt: sample.resetsAt, now: now))
+            )
         }
         if week.state != .unknown, let sample = weekSample, let asOf = usageAsOf {
-            expiries.append(trustExpiry(usageTrustInputs(asOf: asOf, windowResetsAt: sample.resetsAt, now: now)))
+            expiries.append(
+                trustExpiry(usageTrustInputs(asOf: asOf, windowResetsAt: sample.resetsAt, now: now))
+            )
         }
         if platform.state != .unknown, let asOf = statusAsOf {
             expiries.append(trustExpiry(statusTrustInputs(asOf: asOf, now: now)))

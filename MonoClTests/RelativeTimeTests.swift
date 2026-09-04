@@ -1,6 +1,7 @@
 // MonoClTests/RelativeTimeTests.swift
 import Foundation
 import Testing
+
 @testable import MonoCl
 
 @Suite("Relative time")
@@ -70,7 +71,8 @@ struct RelativeTimeTests {
 
         // The premise: these two noons really are less than 48 hours apart.
         #expect(mondayNoon.timeIntervalSince(saturdayNoon) == 47 * 3600)
-        #expect(RelativeTime.describe(mondayNoon, from: saturdayNoon, calendar: calendar) == "2 days")
+        #expect(
+            RelativeTime.describe(mondayNoon, from: saturdayNoon, calendar: calendar) == "2 days")
     }
 
     @Test("An elapsed instant reads as the smallest bucket rather than a negative")

@@ -3,6 +3,7 @@ import AppKit
 import ClaudeUsage
 import Engine
 import Testing
+
 @testable import MonoCl
 
 @MainActor
@@ -14,12 +15,13 @@ struct TooltipOwnerTests {
     /// for, resetting two hours after `now`.
     private func delegate() -> AppDelegate {
         let delegate = AppDelegate()
-        delegate.store.apply(.samples(
-            session: UsageSample(percent: 25, resetsAt: now.addingTimeInterval(2 * 3600)),
-            week: nil,
-            asOf: now,
-            tokenExpiresAt: now.addingTimeInterval(6 * 3600)
-        ))
+        delegate.store.apply(
+            .samples(
+                session: UsageSample(percent: 25, resetsAt: now.addingTimeInterval(2 * 3600)),
+                week: nil,
+                asOf: now,
+                tokenExpiresAt: now.addingTimeInterval(6 * 3600)
+            ))
         delegate.store.revalidate(now: now)
         return delegate
     }
@@ -34,7 +36,8 @@ struct TooltipOwnerTests {
         let delegate = delegate()
 
         #expect(delegate.tooltipText(now: now).contains("resets in 2 hours"))
-        #expect(delegate.tooltipText(now: now.addingTimeInterval(3600)).contains("resets in 1 hour"))
+        #expect(
+            delegate.tooltipText(now: now.addingTimeInterval(3600)).contains("resets in 1 hour"))
     }
 
     @Test("The percentage is left as of its poll, not invented at hover time")

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Indicators
 
 @Suite("Backoff")
@@ -9,9 +10,11 @@ struct BackoffTests {
         #expect(backoffInterval(base: 60, consecutiveFailures: 0) == 60)
     }
 
-    @Test("Doubling", arguments: [
-        (1, 60.0), (2, 120.0), (3, 240.0), (4, 480.0),
-    ])
+    @Test(
+        "Doubling",
+        arguments: [
+            (1, 60.0), (2, 120.0), (3, 240.0), (4, 480.0),
+        ])
     func doubling(failures: Int, expected: Double) {
         #expect(backoffInterval(base: 60, consecutiveFailures: failures) == expected)
     }

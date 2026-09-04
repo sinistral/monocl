@@ -3,6 +3,7 @@ import Foundation
 import Indicators
 import PlatformStatus
 import Testing
+
 @testable import Engine
 
 @MainActor
@@ -78,8 +79,8 @@ struct EngineSuite {
         )
         var changes = 0
         let engine = try makeEngine(
-            usage: http, settings: { offGridCadence }, time: time
-        ) { changes += 1 }
+            usage: http, settings: { offGridCadence }, time: time,
+            onChange: { changes += 1 })
         defer { engine.stop() }
 
         engine.start()

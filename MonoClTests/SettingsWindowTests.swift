@@ -1,5 +1,6 @@
 import AppKit
 import Testing
+
 @testable import MonoCl
 
 @MainActor
@@ -18,7 +19,7 @@ struct SettingsWindowTests {
     @Test("Choosing Settings puts a settings window on screen")
     func opensAWindow() {
         let delegate = AppDelegate()
-        defer { settingsWindows.forEach { $0.close() } }
+        defer { for window in settingsWindows { window.close() } }
 
         delegate.openSettings()
 
@@ -29,7 +30,7 @@ struct SettingsWindowTests {
     @Test("The window is tall enough to show the form, not just a title bar")
     func showsTheForm() {
         let delegate = AppDelegate()
-        defer { settingsWindows.forEach { $0.close() } }
+        defer { for window in settingsWindows { window.close() } }
 
         delegate.openSettings()
 
@@ -45,7 +46,7 @@ struct SettingsWindowTests {
     @Test("Choosing Settings twice reuses the one window")
     func reusesTheWindow() throws {
         let delegate = AppDelegate()
-        defer { settingsWindows.forEach { $0.close() } }
+        defer { for window in settingsWindows { window.close() } }
 
         delegate.openSettings()
         let first = try #require(settingsWindows.first)
@@ -64,7 +65,7 @@ struct SettingsWindowTests {
     @Test("The window follows the user to the Space they are on")
     func followsTheActiveSpace() throws {
         let delegate = AppDelegate()
-        defer { settingsWindows.forEach { $0.close() } }
+        defer { for window in settingsWindows { window.close() } }
 
         delegate.openSettings()
 
@@ -75,10 +76,10 @@ struct SettingsWindowTests {
     @Test("Settings can be closed and chosen again")
     func survivesAClose() {
         let delegate = AppDelegate()
-        defer { settingsWindows.forEach { $0.close() } }
+        defer { for window in settingsWindows { window.close() } }
 
         delegate.openSettings()
-        settingsWindows.forEach { $0.close() }
+        for window in settingsWindows { window.close() }
         delegate.openSettings()
 
         #expect(settingsWindows.count == 1)
@@ -93,7 +94,8 @@ struct SettingsWindowTests {
     @Test("The keyboard can close the window and quit the app")
     func installsKeyEquivalents() {
         let items = NSApp.mainMenu?.items.first?.submenu?.items ?? []
-        let shortcuts = Set(items.map { "\($0.keyEquivalent):\($0.action.map(NSStringFromSelector) ?? "")" })
+        let shortcuts = Set(
+            items.map { "\($0.keyEquivalent):\($0.action.map(NSStringFromSelector) ?? "")" })
 
         // Containment rather than equality: AppKit adds a hidden
         // option-W "Close All" of its own to any menu carrying a Close,
