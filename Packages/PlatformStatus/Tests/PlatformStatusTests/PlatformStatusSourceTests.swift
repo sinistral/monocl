@@ -44,4 +44,13 @@ struct PlatformStatusSourceTests {
         let (subject, _) = source(.response(status: 503, body: #"{"status":{"indicator":"none","description":"x"}}"#))
         #expect(await subject.fetch(now: now) == .failure(.unexpectedResponse))
     }
+
+    @Test("The page offered to the reader is the one the endpoint speaks for")
+    func pageMatchesEndpoint() {
+        // Sending a reader somewhere other than the host MonoCl polled
+        // would let the two disagree, which is the one thing a "see for
+        // yourself" link must not do.
+        #expect(PlatformStatusSource.page == URL(string: "https://status.claude.com/"))
+        #expect(PlatformStatusSource.page.host() == PlatformStatusSource.endpoint.host())
+    }
 }

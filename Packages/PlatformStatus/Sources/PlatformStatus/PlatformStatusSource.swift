@@ -61,6 +61,11 @@ public struct EphemeralStatusFetcher: StatusFetching {
 public struct PlatformStatusSource: Sendable {
     public static let endpoint = URL(string: "https://status.claude.com/api/v2/summary.json")!
 
+    /// The human-readable page behind `endpoint`, for a reader who wants
+    /// the detail the one-line summary omits — which incident, since
+    /// when, and what Anthropic says about it.
+    public static let page = URL(string: "https://status.claude.com/")!
+
     private let http: any StatusFetching
     private let logger = Logger(subsystem: "net.sinistral.monocl", category: "status")
 

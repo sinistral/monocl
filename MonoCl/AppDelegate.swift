@@ -108,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 refresh: #selector(refreshNow),
                 retry: #selector(retryUsage),
                 openSettings: #selector(openSettings),
+                openStatusPage: #selector(openStatusPage),
                 quit: #selector(quit)
             ),
             refreshPending: engine.pendingRefresh
@@ -139,6 +140,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func refreshNow() { engine.refreshNow() }
 
     @objc private func retryUsage() { engine.retryUsage() }
+
+    /// Opens the page the platform reading was taken from, so what the
+    /// reader sees in the browser cannot disagree with the row they
+    /// clicked.  No activation call: the page opens in the browser,
+    /// which comes forward on its own.
+    @objc private func openStatusPage() {
+        NSWorkspace.shared.open(PlatformStatusSource.page)
+    }
 
     /// Activating first is what makes the window come forward: clicking
     /// a status item does not activate an accessory app, so an ordered

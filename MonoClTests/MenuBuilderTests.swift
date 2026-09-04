@@ -13,6 +13,7 @@ struct MenuBuilderTests {
         refresh: #selector(NSApplication.terminate(_:)),
         retry: #selector(NSApplication.terminate(_:)),
         openSettings: #selector(NSApplication.terminate(_:)),
+        openStatusPage: #selector(NSApplication.hide(_:)),
         quit: #selector(NSApplication.terminate(_:))
     )
 
@@ -124,5 +125,25 @@ struct MenuBuilderTests {
         store.apply(UsageOutcome.failure(.offline))
         store.revalidate(now: .now)
         #expect(titles(store).contains("Session: 95% · Offline"))
+    }
+
+    @Test("The platform row opens the status page; the usage rows stay inert")
+    func platformRowOpensTheStatusPage() {
+        let store = IndicatorStore()
+        store.revalidate(now: .now)
+        let rows = items(store)
+
+        let platform = rows.first { $0.title.hasPrefix("Platform:") }
+        #expect(platform?.action == #selector(NSApplication.hide(_:)))
+        #expect(platform?.target === NSApp)
+
+        // Session and Week report a number MonoCl already shows in full;
+        // there is nowhere for them to lead, so they must not look as
+        // though there is.
+        for prefix in ["Session:", "Week:"] {
+            let row = rows.first { $0.title.hasPrefix(prefix) }
+            #expect(row?.action == nil)
+            #expect(row?.isEnabled == false)
+        }
     }
 }
