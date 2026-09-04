@@ -17,6 +17,12 @@ struct MenuBuilderTests {
         quit: #selector(NSApplication.terminate(_:))
     )
 
+    /// 2026-08-31 12:00:00 UTC, a Monday, so the weekday-bearing rows
+    /// below read as Monday plus the offset under test.
+    private let now = Date(timeIntervalSince1970: 1_788_177_600)
+
+    private let utc = TimeZone(identifier: "UTC")!
+
     private func titles(_ store: IndicatorStore, refreshPending: PendingRefresh? = nil) -> [String] {
         items(store, refreshPending: refreshPending).map(\.title)
     }
@@ -26,8 +32,28 @@ struct MenuBuilderTests {
             store: store,
             target: NSApp,
             actions: actions,
-            refreshPending: refreshPending
+            refreshPending: refreshPending,
+            timeZone: utc,
+            now: now
         ).items
+    }
+
+    /// A store holding usage samples MonoCl can vouch for at `now`.
+    private func store(
+        sessionPercent: Double,
+        sessionResetsIn: TimeInterval,
+        weekPercent: Double? = nil,
+        weekResetsIn: TimeInterval = 0
+    ) -> IndicatorStore {
+        let store = IndicatorStore()
+        store.apply(.samples(
+            session: UsageSample(percent: sessionPercent, resetsAt: now.addingTimeInterval(sessionResetsIn)),
+            week: weekPercent.map { UsageSample(percent: $0, resetsAt: now.addingTimeInterval(weekResetsIn)) },
+            asOf: now,
+            tokenExpiresAt: now.addingTimeInterval(7200)
+        ))
+        store.revalidate(now: now)
+        return store
     }
 
     @Test("A pending refresh replaces the Refresh now command with a disabled progress row")
@@ -112,19 +138,36 @@ struct MenuBuilderTests {
         #expect(t.contains { $0.hasPrefix("Platform:") })
     }
 
-    @Test("A retained reading's row carries its note")
+    @Test("A retained reading's note follows its reset time")
     func retainedRowCarriesNote() {
-        let store = IndicatorStore()
-        store.apply(.samples(
-            session: UsageSample(percent: 95, resetsAt: Date().addingTimeInterval(3600)),
-            week: nil,
-            asOf: .now,
-            tokenExpiresAt: Date().addingTimeInterval(7200)
-        ))
-        store.revalidate(now: .now)
+        let store = store(sessionPercent: 95, sessionResetsIn: 3600)
         store.apply(UsageOutcome.failure(.offline))
-        store.revalidate(now: .now)
-        #expect(titles(store).contains("Session: 95% · Offline"))
+        store.revalidate(now: now)
+        #expect(titles(store).contains("Session: 95%, resets at 13:00 (in 1 hour) · Offline"))
+    }
+
+    @Test("A usage row states the reset both as a clock time and as time remaining")
+    func rowStatesResetBothWays() {
+        // Within half a day the bare time is unambiguous, so no weekday
+        // is spent on it.
+        let store = store(sessionPercent: 25, sessionResetsIn: 2 * 3600)
+        #expect(titles(store).contains("Session: 25%, resets at 14:00 (in 2 hours)"))
+    }
+
+    @Test("A reset beyond 12 hours names its weekday")
+    func distantResetNamesItsWeekday() {
+        // Past half a day a bare time no longer says which day it falls
+        // on, which is precisely the question a weekly window raises.
+        let store = store(sessionPercent: 25, sessionResetsIn: 3600, weekPercent: 20, weekResetsIn: 2 * 86_400)
+        #expect(titles(store).contains("Week: 20%, resets on Wednesday at 12:00 (in 2 days)"))
+    }
+
+    @Test("A row MonoCl cannot vouch for states no reset time")
+    func unknownRowStatesNoReset() {
+        let store = IndicatorStore()
+        store.revalidate(now: now)
+        let session = titles(store).first { $0.hasPrefix("Session:") }
+        #expect(session == "Session: — no recent reading")
     }
 
     @Test("The platform row opens the status page; the usage rows stay inert")

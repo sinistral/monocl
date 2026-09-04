@@ -33,7 +33,6 @@ struct TooltipComposerTests {
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: now.addingTimeInterval(3600),
             weekResetsAt: now.addingTimeInterval(86_400),
-            timeZone: TimeZone(identifier: "UTC")!,
             now: now
         )
         let lines = text.split(separator: "\n").map(String.init)
@@ -45,7 +44,7 @@ struct TooltipComposerTests {
         #expect(lines[2].contains("All Systems Operational"))
     }
 
-    @Test("A usage line shows its reset time")
+    @Test("A usage line shows how long until its reset")
     func showsResetTime() {
         let text = TooltipComposer.tooltip(
             session: reading(.nominal, "12%"),
@@ -53,28 +52,24 @@ struct TooltipComposerTests {
             platform: reading(.unknown, noReading),
             sessionResetsAt: now.addingTimeInterval(3600),
             weekResetsAt: nil,
-            timeZone: TimeZone(identifier: "UTC")!,
             now: now
         )
         let first = String(text.split(separator: "\n")[0])
-        #expect(first.contains("resets"))
-        #expect(first.contains("13:00"))
+        #expect(first.contains("resets in 1 hour"))
     }
 
-    @Test("A reset time beyond 12 hours shows its weekday")
-    func showsWeekdayBeyond12Hours() {
+    @Test("A reset a day out is counted in days")
+    func showsDaysBeyond24Hours() {
         let text = TooltipComposer.tooltip(
             session: reading(.unknown, noReading),
             week: reading(.nominal, "20%"),
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: nil,
             weekResetsAt: now.addingTimeInterval(86_400),
-            timeZone: TimeZone(identifier: "UTC")!,
             now: now
         )
         let second = String(text.split(separator: "\n")[1])
-        // now is 2026-08-31 12:00 UTC, a Monday; +24h is Tuesday noon.
-        #expect(second == "Week     20%  ·  resets Tue 12:00")
+        #expect(second == "Week     20%  ·  resets in 1 day")
     }
 
     @Test("An unknown reading shows an em dash and no percentage")
@@ -85,7 +80,6 @@ struct TooltipComposerTests {
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: nil,
             weekResetsAt: now.addingTimeInterval(86_400),
-            timeZone: TimeZone(identifier: "UTC")!,
             now: now
         )
         let first = String(text.split(separator: "\n")[0])
@@ -102,7 +96,6 @@ struct TooltipComposerTests {
             platform: reading(.unknown, "Offline"),
             sessionResetsAt: nil,
             weekResetsAt: nil,
-            timeZone: TimeZone(identifier: "UTC")!,
             now: now
         )
         #expect(text.contains("Offline"))
@@ -116,10 +109,9 @@ struct TooltipComposerTests {
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: now.addingTimeInterval(3600),
             weekResetsAt: now.addingTimeInterval(86_400),
-            timeZone: TimeZone(identifier: "UTC")!,
             now: now
         )
         let first = String(text.split(separator: "\n")[0])
-        #expect(first == "Session  95%  ·  resets 13:00  ·  Offline")
+        #expect(first == "Session  95%  ·  resets in 1 hour  ·  Offline")
     }
 }

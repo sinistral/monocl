@@ -20,10 +20,11 @@ The glyph is monochrome until a threshold is crossed (75% warning, 90%
 critical by default), at which point it takes color *and* cuts radial
 slots through the gauge — one for warning, two for critical — so the
 severity survives for readers who cannot rely on the amber/red pair.
-Hovering gives the numbers and reset times; the menu gives them in
-words, plus "Refresh now", Settings, and Quit. The platform row in the
-menu opens `status.claude.com`, where the incident behind the summary is
-written out.
+Hovering gives the numbers and how long until each window resets; the
+menu gives them in words and adds the reset's clock time, plus "Refresh
+now", Settings, and Quit. The platform row in the menu opens
+`status.claude.com`, where the incident behind the summary is written
+out.
 
 Color only ever means *the thing being measured is in a bad state* —
 your usage is high, or Anthropic has an incident open. It never means
