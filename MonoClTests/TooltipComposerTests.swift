@@ -17,6 +17,11 @@ struct TooltipComposerTests {
     /// literal here is the assertion, not a workaround.
     private let noReading = "no recent reading"
 
+    /// Pinned for the same reason as `RelativeTimeTests`: the day counts
+    /// below are derived from second offsets, which only decompose the
+    /// same way everywhere if the zone is fixed.
+    private let utc = TimeZone(identifier: "UTC")!
+
     private func reading(
         _ state: IndicatorState,
         _ detail: String,
@@ -33,7 +38,8 @@ struct TooltipComposerTests {
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: now.addingTimeInterval(3600),
             weekResetsAt: now.addingTimeInterval(86_400),
-            now: now
+            now: now,
+            timeZone: utc
         )
         let lines = text.split(separator: "\n").map(String.init)
         #expect(lines.count == 3)
@@ -52,7 +58,8 @@ struct TooltipComposerTests {
             platform: reading(.unknown, noReading),
             sessionResetsAt: now.addingTimeInterval(3600),
             weekResetsAt: nil,
-            now: now
+            now: now,
+            timeZone: utc
         )
         let first = String(text.split(separator: "\n")[0])
         #expect(first.contains("resets in 1 hour"))
@@ -66,7 +73,8 @@ struct TooltipComposerTests {
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: nil,
             weekResetsAt: now.addingTimeInterval(86_400),
-            now: now
+            now: now,
+            timeZone: utc
         )
         let second = String(text.split(separator: "\n")[1])
         #expect(second == "Week     20%  ·  resets in 1 day")
@@ -80,7 +88,8 @@ struct TooltipComposerTests {
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: nil,
             weekResetsAt: now.addingTimeInterval(86_400),
-            now: now
+            now: now,
+            timeZone: utc
         )
         let first = String(text.split(separator: "\n")[0])
         #expect(first.contains("—"))
@@ -96,7 +105,8 @@ struct TooltipComposerTests {
             platform: reading(.unknown, "Offline"),
             sessionResetsAt: nil,
             weekResetsAt: nil,
-            now: now
+            now: now,
+            timeZone: utc
         )
         #expect(text.contains("Offline"))
     }
@@ -109,7 +119,8 @@ struct TooltipComposerTests {
             platform: reading(.nominal, "All Systems Operational"),
             sessionResetsAt: now.addingTimeInterval(3600),
             weekResetsAt: now.addingTimeInterval(86_400),
-            now: now
+            now: now,
+            timeZone: utc
         )
         let first = String(text.split(separator: "\n")[0])
         #expect(first == "Session  95%  ·  resets in 1 hour  ·  Offline")

@@ -19,12 +19,18 @@ enum TooltipComposer {
         platform: Reading,
         sessionResetsAt: Date?,
         weekResetsAt: Date?,
-        now: Date = .now
+        now: Date = .now,
+        timeZone: TimeZone = .current
     ) -> String {
-        [
-            line(label: "Session", reading: session, resetsAt: sessionResetsAt, now: now),
-            line(label: "Week", reading: week, resetsAt: weekResetsAt, now: now),
-            line(label: "Platform", reading: platform, resetsAt: nil, now: now),
+        // Counted through the same zone the menu names its weekday in,
+        // so the two surfaces cannot report different day counts for one
+        // reset.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return [
+            line(label: "Session", reading: session, resetsAt: sessionResetsAt, now: now, calendar: calendar),
+            line(label: "Week", reading: week, resetsAt: weekResetsAt, now: now, calendar: calendar),
+            line(label: "Platform", reading: platform, resetsAt: nil, now: now, calendar: calendar),
         ].joined(separator: "\n")
     }
 
@@ -32,7 +38,8 @@ enum TooltipComposer {
         label: String,
         reading: Reading,
         resetsAt: Date?,
-        now: Date
+        now: Date,
+        calendar: Calendar
     ) -> String {
         let padded = label.padding(toLength: 9, withPad: " ", startingAt: 0)
         guard reading.state != .unknown else {
@@ -40,7 +47,7 @@ enum TooltipComposer {
         }
         var text = "\(padded)\(reading.detail)"
         if let resetsAt {
-            text += "  ·  resets in \(RelativeTime.describe(resetsAt, from: now))"
+            text += "  ·  resets in \(RelativeTime.describe(resetsAt, from: now, calendar: calendar))"
         }
         if let note = reading.note {
             text += "  ·  \(note)"

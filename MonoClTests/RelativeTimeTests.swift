@@ -7,8 +7,17 @@ import Testing
 struct RelativeTimeTests {
     private let now = Date(timeIntervalSince1970: 1_788_177_600)
 
+    /// Pinned to UTC.  `describe` counts days through the calendar it
+    /// is given, and letting these inherit the machine's would make the
+    /// second-based expectations below depend on whose machine ran them.
+    private var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
     private func describe(_ seconds: TimeInterval) -> String {
-        RelativeTime.describe(now.addingTimeInterval(seconds), from: now)
+        RelativeTime.describe(now.addingTimeInterval(seconds), from: now, calendar: utc)
     }
 
     @Test("The unit is the largest whole one the interval fills")
@@ -42,6 +51,26 @@ struct RelativeTimeTests {
         // The weekly window is seven days wide, and "7 days" is a
         // plainer statement of that than "1 week".
         #expect(describe(7 * 86_400) == "7 days")
+    }
+
+    @Test("A day is the calendar's day, not a fixed 86 400 seconds")
+    func daysAreCalendarDays() {
+        // 2026-03-08 is a spring-forward Sunday in America/Denver, so
+        // noon Saturday to noon Monday is two calendar days but only 47
+        // hours.  Counting fixed days would call that "1 day" while the
+        // menu beside it names Monday -- one phrase contradicting itself.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Denver")!
+        let saturdayNoon = DateComponents(
+            calendar: calendar, year: 2026, month: 3, day: 7, hour: 12
+        ).date!
+        let mondayNoon = DateComponents(
+            calendar: calendar, year: 2026, month: 3, day: 9, hour: 12
+        ).date!
+
+        // The premise: these two noons really are less than 48 hours apart.
+        #expect(mondayNoon.timeIntervalSince(saturdayNoon) == 47 * 3600)
+        #expect(RelativeTime.describe(mondayNoon, from: saturdayNoon, calendar: calendar) == "2 days")
     }
 
     @Test("An elapsed instant reads as the smallest bucket rather than a negative")
