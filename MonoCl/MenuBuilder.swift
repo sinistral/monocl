@@ -130,6 +130,12 @@ enum MenuBuilder {
         let near = date.timeIntervalSince(now) < 12 * 3600
         formatter.dateFormat = near ? "HH:mm" : "EEEE' at 'HH:mm"
         let when = formatter.string(from: date)
-        return "\(near ? "at " : "on ")\(when) (in \(RelativeTime.describe(date, from: now)))"
+        // The countdown is counted through the same zone the weekday was
+        // named in.  Leaving it to the current calendar lets one half of
+        // this sentence disagree with the other whenever the two differ.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let remaining = RelativeTime.describe(date, from: now, calendar: calendar)
+        return "\(near ? "at " : "on ")\(when) (in \(remaining))"
     }
 }

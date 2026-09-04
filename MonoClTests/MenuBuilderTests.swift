@@ -162,6 +162,58 @@ struct MenuBuilderTests {
         #expect(titles(store).contains("Week: 20%, resets on Wednesday at 12:00 (in 2 days)"))
     }
 
+    @Test("The countdown is counted in the zone the weekday was named in")
+    func countdownFollowsTheGivenZone() {
+        // One pair of instants, read in two zones.  Europe/London springs
+        // forward on 2026-03-29, so noon Saturday to noon Monday is two
+        // calendar days there but only 47 hours; America/Denver, which
+        // has already made its shift, sees the same 47 hours as one day.
+        //
+        // Asserting both is what makes this falsifiable anywhere: a
+        // countdown taken from the machine's own calendar rather than
+        // the given one would read the same in both rows, whatever
+        // machine runs the test.
+        let london = TimeZone(identifier: "Europe/London")!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = london
+        let saturdayNoon = DateComponents(
+            calendar: calendar, year: 2026, month: 3, day: 28, hour: 12
+        ).date!
+        let mondayNoon = DateComponents(
+            calendar: calendar, year: 2026, month: 3, day: 30, hour: 12
+        ).date!
+
+        // The premise both rows rest on: 47 hours, spanning two Mondays
+        // that are named differently in the two zones.
+        #expect(mondayNoon.timeIntervalSince(saturdayNoon) == 47 * 3600)
+
+        let store = IndicatorStore()
+        store.apply(.samples(
+            session: UsageSample(percent: 25, resetsAt: saturdayNoon.addingTimeInterval(3600)),
+            week: UsageSample(percent: 20, resetsAt: mondayNoon),
+            asOf: saturdayNoon,
+            tokenExpiresAt: mondayNoon.addingTimeInterval(3600)
+        ))
+        store.revalidate(now: saturdayNoon)
+
+        func weekRow(in timeZone: TimeZone) -> String? {
+            MenuBuilder.menu(
+                store: store,
+                target: NSApp,
+                actions: actions,
+                refreshPending: nil,
+                timeZone: timeZone,
+                now: saturdayNoon
+            ).items.map(\.title).first { $0.hasPrefix("Week:") }
+        }
+
+        #expect(weekRow(in: london) == "Week: 20%, resets on Monday at 12:00 (in 2 days)")
+        #expect(
+            weekRow(in: TimeZone(identifier: "America/Denver")!)
+                == "Week: 20%, resets on Monday at 05:00 (in 1 day)"
+        )
+    }
+
     @Test("A row MonoCl cannot vouch for states no reset time")
     func unknownRowStatesNoReset() {
         let store = IndicatorStore()
