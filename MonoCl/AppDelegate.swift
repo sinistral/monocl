@@ -6,7 +6,7 @@ import PlatformStatus
 import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSViewToolTipOwner {
     let preferences = Preferences()
 
     private lazy var engine = Engine(
@@ -28,9 +28,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
 
+    /// Held so the registration can be undone: the default centre keeps
+    /// a block-based observer until it is handed back this token.
+    private var buttonGeometryObserver: (any NSObjectProtocol)?
+
+    /// The bounds the current tooltip rect describes, so a registration
+    /// that would change nothing can be skipped.
+    private var registeredTooltipRect: NSRect?
+
+    /// The readings the two surfaces render.  Exposed for the tests that
+    /// seed a delegate and read back what it would display.
+    var store: IndicatorStore { engine.store }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.toolTip = "MonoCl"
         let menu = NSMenu()
         menu.delegate = self
         item.menu = menu
@@ -38,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         NSApp.mainMenu = Self.makeMainMenu()
         observeSystemNotifications()
+        observeButtonGeometry(item.button)
         engine.start()
     }
 
@@ -78,18 +90,82 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func renderIcon() {
         guard let button = statusItem?.button else { return }
+        renderIcon(on: button)
+    }
+
+    /// Takes the button rather than reaching for the status item's, so a
+    /// test can watch what is done to it.
+    func renderIcon(on button: NSButton) {
         let spec = iconSpec(
             session: engine.store.session,
             week: engine.store.week,
             platform: engine.store.platform
         )
         button.image = MenuBarIcon.image(for: spec)
-        button.toolTip = TooltipComposer.tooltip(
-            session: engine.store.session,
-            week: engine.store.week,
-            platform: engine.store.platform,
-            sessionResetsAt: engine.store.sessionResetsAt,
-            weekResetsAt: engine.store.weekResetsAt
+
+        registerTooltip(on: button)
+
+        // `NSView` derives accessibility help from the `toolTip`
+        // property, and a tooltip rect does not feed it -- measured on
+        // macOS 26: with the property, `accessibilityHelp()` is the
+        // string; with a rect and no property, nil.  So the readings
+        // have to be stated outright, or a VoiceOver user would be left
+        // with nothing where they previously had the whole hover text.
+        //
+        // Pushed on each render, and so as stale between polls as the
+        // property it replaces was.  The pull that keeps the countdown
+        // live is a tooltip mechanism; there is no equivalent hook here
+        // to hang it on.
+        button.setAccessibilityHelp(tooltipText())
+    }
+
+    /// Points AppKit at this delegate for the button's hover text.
+    ///
+    /// A tooltip rect rather than the `toolTip` property because the
+    /// text contains a countdown: a pushed string is only as fresh as
+    /// the render that pushed it, whereas AppKit asks the owner for the
+    /// text as the tooltip is about to appear.
+    ///
+    /// The rect is the button's own bounds, so every caller has to have
+    /// those settled first, and it has to be re-taken whenever they
+    /// change.  A variable-length status button is sized to its content:
+    /// measured on macOS 26 it is 16pt bare and 50pt once it holds the
+    /// 34pt glyph, taking that width on the assignment rather than at
+    /// some later layout pass.  Hence the two callers — after the image
+    /// in `renderIcon(on:)`, and from `observeButtonGeometry` for the
+    /// resizes no render is watching for.
+    ///
+    /// Nothing happens unless the bounds actually moved.  Tearing the
+    /// rect down and rebuilding it drops any tooltip currently on screen,
+    /// and AppKit will not put it back until the pointer leaves and
+    /// returns — so re-registering unconditionally would snatch the text
+    /// away from a reader mid-hover every time a poll landed, which is
+    /// the one moment this whole mechanism exists to serve.  It also
+    /// collapses the double registration a render would otherwise do,
+    /// the image's resize having already prompted one.
+    private func registerTooltip(on button: NSButton) {
+        guard registeredTooltipRect != button.bounds else { return }
+        button.removeAllToolTips()
+        button.addToolTip(button.bounds, owner: self, userData: nil)
+        registeredTooltipRect = button.bounds
+    }
+
+    /// The hover text, composed on demand.
+    ///
+    /// The icon and the percentages can only change when a poll lands,
+    /// but the countdown beside them changes continuously and costs
+    /// nothing to recompute — so it is taken from the clock at the moment
+    /// the reader asks, while the utilisation stays exactly what the last
+    /// poll reported.  Mixed freshness, deliberately: one of the two can
+    /// be known for free and the other cannot.
+    func tooltipText(now: Date = .now) -> String {
+        TooltipComposer.tooltip(
+            session: store.session,
+            week: store.week,
+            platform: store.platform,
+            sessionResetsAt: store.sessionResetsAt,
+            weekResetsAt: store.weekResetsAt,
+            now: now
         )
     }
 
@@ -117,6 +193,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func settingsChanged() { engine.settingsChanged() }
 
+    // MARK: - NSViewToolTipOwner
+
+    func view(
+        _ view: NSView,
+        stringForToolTip tag: NSView.ToolTipTag,
+        point: NSPoint,
+        userData: UnsafeMutableRawPointer?
+    ) -> String {
+        tooltipText()
+    }
+
     // MARK: - NSMenuDelegate
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -124,6 +211,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     // MARK: - System notifications
+
+    /// Re-registers the tooltip whenever `button`'s frame changes —
+    /// resizes a render would not otherwise hear about, the menu bar's
+    /// thickness following the display among them.  Why the rect has to
+    /// follow the bounds at all is on `registerTooltip(on:)`.
+    ///
+    /// Takes the button rather than reaching for the status item's, so a
+    /// test can resize its own and watch what follows.
+    ///
+    /// On the main queue, which `MainActor.assumeIsolated` below requires
+    /// — that call traps rather than warns, so a block reached from any
+    /// other thread would take the app down.  It costs nothing: a
+    /// notification posted from the main queue runs its block inline
+    /// there, so the rect is re-taken as the resize happens rather than a
+    /// turn later.
+    ///
+    /// Replaces any previous registration.  This is reachable more than
+    /// once, and two observers on one button would re-register the rect
+    /// twice on every resize.
+    func observeButtonGeometry(_ button: NSButton?) {
+        guard let button else { return }
+        stopObservingButtonGeometry()
+        button.postsFrameChangedNotifications = true
+        buttonGeometryObserver = NotificationCenter.default.addObserver(
+            forName: NSView.frameDidChangeNotification, object: button, queue: .main
+        ) { [weak self, weak button] _ in
+            MainActor.assumeIsolated {
+                guard let self, let button else { return }
+                self.registerTooltip(on: button)
+            }
+        }
+    }
+
+    /// Hands the observer back to the notification centre.
+    ///
+    /// The app never calls this — it observes for as long as it runs —
+    /// but a test that registers and does not unregister leaves a block
+    /// in the process-wide centre outliving the test that made it.
+    func stopObservingButtonGeometry() {
+        guard let buttonGeometryObserver else { return }
+        NotificationCenter.default.removeObserver(buttonGeometryObserver)
+        self.buttonGeometryObserver = nil
+    }
 
     private func observeSystemNotifications() {
         let center = NSWorkspace.shared.notificationCenter

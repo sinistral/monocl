@@ -4,9 +4,9 @@ import Indicators
 
 /// Builds the multi-line hover text.
 ///
-/// `NSStatusItem.button.toolTip` accepts newlines, which is why one
-/// status item can report all three indicators on hover — the reason the
-/// design uses a single item rather than three.
+/// A status item's tooltip accepts newlines, which is why one item can
+/// report all three indicators on hover — the reason the design uses a
+/// single item rather than three.
 ///
 /// Resets are given only as time remaining.  A tooltip is read at a
 /// glance and is the narrower of the two surfaces, and "how long have I
