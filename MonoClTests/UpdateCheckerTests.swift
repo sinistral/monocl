@@ -20,6 +20,12 @@ struct UpdateCheckerTests {
     private final class Answers: @unchecked Sendable {
         private var remaining: [UpdateCheckOutcome]
         init(_ answers: [UpdateCheckOutcome]) { remaining = answers }
+
+        /// How many answers have not been handed out.  Lets a test about
+        /// cadence assert the positive fact that the next check has not
+        /// happened yet, rather than only that nothing has appeared.
+        var unconsumed: Int { remaining.count }
+
         func next() -> UpdateCheckOutcome {
             guard !remaining.isEmpty else { return .indeterminate }
             return remaining.removeFirst()
@@ -148,9 +154,13 @@ struct UpdateCheckerTests {
         )
         defer { subject.stop() }
         subject.start()
-        // Long enough that the short interval would have fired many
+        // Long enough that the short interval would have fired sixty
         // times over, and far short of the long one.
-        _ = await holds(within: .milliseconds(300)) { false }
+        try? await Task.sleep(for: .milliseconds(300))
+        // The positive fact: the second answer is still on the shelf, so
+        // exactly one check has run.  Asserting only that no row appeared
+        // would pass just as happily if the loop had died.
+        #expect(answers.unconsumed == 1)
         #expect(subject.available == nil)
         #expect(changes.count == 0)
     }

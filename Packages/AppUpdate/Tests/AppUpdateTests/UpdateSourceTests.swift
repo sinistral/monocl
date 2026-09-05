@@ -56,6 +56,21 @@ struct UpdateSourceTests {
         #expect(await subject.check(against: current) == .nothingToOffer)
     }
 
+    @Test("An uppercase https scheme is still https")
+    func uppercaseHTTPSPage() async {
+        // `URL` does not normalise the scheme, so a literal comparison
+        // would refuse this and hide the release permanently.
+        let (subject, _) = source(
+            .response(
+                status: 200,
+                body: body(tag: "v9.9.9", page: "HTTPS://github.com/sinistral/monocl/releases")))
+        guard case .available(let update) = await subject.check(against: current) else {
+            Issue.record("expected an available update")
+            return
+        }
+        #expect(update.version == SemanticVersion(major: 9, minor: 9, patch: 9))
+    }
+
     @Test("A release page that is not https is refused")
     func nonHTTPSPage() async {
         // `NSWorkspace` opens whatever scheme it is handed, so a page

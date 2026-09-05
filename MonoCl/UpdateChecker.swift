@@ -51,17 +51,17 @@ final class UpdateChecker {
     /// rate-limitable.  The same reason `MONOCL_FAKE_CREDENTIAL` exists,
     /// for the same reader.
     ///
-    /// Release builds have no environment hook at all, as with the
-    /// credential: the check is always on.
+    /// Honoured in every configuration, unlike the credential's hook.
+    /// Two code paths would buy nothing here: what a DEBUG-only gate
+    /// protects against -- a Release build talked out of checking by its
+    /// environment -- is not a threat to a tool built and launched by
+    /// the one person running it, while the test that covers this refers
+    /// to the variable by name, so gating the variable would make the
+    /// test target's own sources configuration-dependent.
     static func isEnabled(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> Bool {
-        #if DEBUG
-            return environment[skipUpdateCheckVariable] == nil
-        #else
-            _ = environment
-            return true
-        #endif
+        environment[skipUpdateCheckVariable] == nil
     }
 
     /// The running build's version, or nil if it does not parse — in
@@ -137,14 +137,8 @@ final class UpdateChecker {
     }
 }
 
-#if DEBUG
-    /// Set on the test scheme.  Presence is the whole signal -- any
-    /// value switches the check off, `0` included -- because the only
-    /// thing that sets it is the scheme, and a value it could
-    /// disagree with would be one more thing to get wrong.
-    ///
-    /// DEBUG-only, like `fakeCredentialVariable`: a Release build
-    /// should not have its update check switched off by whatever
-    /// happens to be in the environment that launched it.
-    let skipUpdateCheckVariable = "MONOCL_SKIP_UPDATE_CHECK"
-#endif
+/// Set on the test scheme.  Presence is the whole signal -- any value
+/// switches the check off, `0` included -- because the only thing that
+/// sets it is the scheme, and a value it could disagree with would be
+/// one more thing to get wrong.
+let skipUpdateCheckVariable = "MONOCL_SKIP_UPDATE_CHECK"
