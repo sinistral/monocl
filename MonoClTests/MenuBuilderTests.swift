@@ -1,5 +1,6 @@
 // MonoClTests/MenuBuilderTests.swift
 import AppKit
+import AppUpdate
 import ClaudeUsage
 import Engine
 import Indicators
@@ -15,6 +16,7 @@ struct MenuBuilderTests {
         retry: #selector(NSApplication.terminate(_:)),
         openSettings: #selector(NSApplication.terminate(_:)),
         openStatusPage: #selector(NSApplication.hide(_:)),
+        openReleasePage: #selector(NSApplication.unhide(_:)),
         quit: #selector(NSApplication.terminate(_:))
     )
 
@@ -24,19 +26,26 @@ struct MenuBuilderTests {
 
     private let utc = TimeZone(identifier: "UTC")!
 
-    private func titles(_ store: IndicatorStore, refreshPending: PendingRefresh? = nil) -> [String]
-    {
-        items(store, refreshPending: refreshPending).map(\.title)
+    private func titles(
+        _ store: IndicatorStore,
+        refreshPending: PendingRefresh? = nil,
+        availableUpdate: AvailableUpdate? = nil
+    ) -> [String] {
+        items(store, refreshPending: refreshPending, availableUpdate: availableUpdate)
+            .map(\.title)
     }
 
-    private func items(_ store: IndicatorStore, refreshPending: PendingRefresh? = nil)
-        -> [NSMenuItem]
-    {
+    private func items(
+        _ store: IndicatorStore,
+        refreshPending: PendingRefresh? = nil,
+        availableUpdate: AvailableUpdate? = nil
+    ) -> [NSMenuItem] {
         MenuBuilder.menu(
             store: store,
             target: NSApp,
             actions: actions,
             refreshPending: refreshPending,
+            availableUpdate: availableUpdate,
             timeZone: utc,
             now: now
         ).items
@@ -115,6 +124,41 @@ struct MenuBuilderTests {
         #expect(t.contains("Waiting out the rate limit"))
         #expect(t.contains("Refreshing…") == false)
         #expect(t.contains("Refresh now") == false)
+    }
+
+    @Test("An available update adds a row naming the version, above Quit")
+    func updateRowNamesTheVersion() throws {
+        let update = AvailableUpdate(
+            version: SemanticVersion(major: 0, minor: 2, patch: 0),
+            page: URL(string: "https://github.com/sinistral/monocl/releases/tag/v0.2.0")!
+        )
+        let rows = titles(
+            store(sessionPercent: 0.1, sessionResetsIn: 3600), availableUpdate: update)
+        let updateRow = try #require(rows.firstIndex(of: "Version 0.2.0 available…"))
+        let settingsRow = try #require(rows.firstIndex(of: "Settings…"))
+        let quitRow = try #require(rows.firstIndex(of: "Quit MonoCl"))
+        #expect(settingsRow < updateRow)
+        #expect(updateRow < quitRow)
+    }
+
+    @Test("With no update, the menu holds exactly the rows it holds without one")
+    func updateRowIsAbsentWhenThereIsNoUpdate() {
+        let seeded = store(sessionPercent: 0.1, sessionResetsIn: 3600)
+        #expect(titles(seeded, availableUpdate: nil) == titles(seeded))
+        #expect(titles(seeded).allSatisfy { !$0.hasPrefix("Version ") })
+    }
+
+    @Test("The update row opens the release page")
+    func updateRowOpensTheReleasePage() throws {
+        let update = AvailableUpdate(
+            version: SemanticVersion(major: 1, minor: 0, patch: 0),
+            page: URL(string: "https://github.com/sinistral/monocl/releases/tag/v1.0.0")!
+        )
+        let row = try #require(
+            items(store(sessionPercent: 0.1, sessionResetsIn: 3600), availableUpdate: update)
+                .first { $0.title == "Version 1.0.0 available…" })
+        #expect(row.action == actions.openReleasePage)
+        #expect(row.isEnabled)
     }
 
     @Test("The standard items are present")

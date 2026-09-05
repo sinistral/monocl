@@ -75,32 +75,7 @@ any user other than its author.
 
 ---
 
-## 3. Sign with a stable identity so the keychain grant persists
-
-**Deferred:** replacing ad-hoc signing with a stable self-signed code
-signing identity.
-
-A keychain ACL grant is bound to the requesting binary code signature.
-MonoCl is ad-hoc signed, and an ad-hoc signature changes on every
-rebuild, so the "Always Allow" decision does not survive a rebuild: the
-authorization dialog reappears once per build.
-
-**Why deferring is acceptable:** during development a rebuild happens
-often and the prompt is a one-click annoyance, not a malfunction. The
-behaviour MonoCl must get right, which is not re-prompting on a timer
-after a denial, is unaffected by signing and is verified in Task 14.
-
-**What to build:** create a self-signed code signing certificate in the
-login keychain, set CODE_SIGN_IDENTITY in project.yml to its name, and
-confirm that a rebuild no longer re-prompts.
-
-**Trigger:** the per-build prompt becoming irritating enough to notice,
-or MonoCl being installed somewhere it runs for long stretches without
-being rebuilt.
-
----
-
-## 4. Revisit the test host's fake credential
+## 3. Revisit the test host's fake credential
 
 **Deferred:** removing `MONOCL_FAKE_CREDENTIAL: not-found` from the
 `MonoCl` scheme.
@@ -125,7 +100,7 @@ any other reason.
 
 ---
 
-## 5. Make the drift check notice a value it cannot decode
+## 4. Make the drift check notice a value it cannot decode
 
 **Deferred:** extending `Scripts/check-fixture-drift.sh` to compare the
 things `UsageWindow` and `SummaryResponse` actually require, rather than
@@ -162,7 +137,7 @@ sources' `Decodable` conformances.
 
 ---
 
-## 6. Distinguish an unknown gauge from a 0% gauge
+## 5. Distinguish an unknown gauge from a 0% gauge
 
 **Deferred:** making the session and week gauges render differently
 for "cannot vouch for this reading" than for "reading is zero".

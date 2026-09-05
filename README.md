@@ -43,6 +43,46 @@ turns red for the real reason they will dismiss it.
   is generated from `project.yml` and is not checked in
 - Claude Code, signed in on the same machine
 
+## Signing identity, once per machine
+
+MonoCl is signed with a self-signed code signing certificate rather
+than ad-hoc, so that the keychain grant described below survives a
+rebuild. Create it in Keychain Access, under **Keychain Access →
+Certificate Assistant → Create a Certificate…**:
+
+| Field | Value |
+|---|---|
+| Name | `MonoCl Self-Signed`, matching `CODE_SIGN_IDENTITY` in `project.yml` |
+| Identity Type | Self Signed Root |
+| Certificate Type | Code Signing |
+| Let me override defaults | checked, so the validity period can be set |
+
+Set the validity period to something long — 3650 days. The keychain
+grant lasts exactly as long as the certificate does, so accepting the
+365-day default puts the authorization dialog back in a year.
+
+Then grant `codesign` use of the key:
+
+```sh
+security set-key-partition-list \
+  -S apple-tool:,apple:,codesign: -s -l "MonoCl Self-Signed" \
+  ~/Library/Keychains/login.keychain-db
+```
+
+This is not optional and not automatic. macOS gates private-key use on
+the ACL partition list as well as on the trusted-application list, and
+neither Certificate Assistant nor `security import` populates it for
+`codesign`. Without it, every build raises a password dialog per
+`codesign` invocation — and a build that signs the app, the test bundle
+and the packages concurrently raises one for each, queued behind one
+another. The command asks for the login keychain password and prints
+nothing on success.
+
+The certificate is deliberately left untrusted. `codesign` signs with
+an untrusted self-signed identity quite happily, and trusting it would
+raise an authorization dialog to satisfy a Gatekeeper that never sees
+this app.
+
 ## Build and run
 
 ```sh
@@ -54,13 +94,14 @@ Then copy the built `MonoCl.app` out of the derived-data path into
 `/Applications` and launch it. The first run asks for keychain access
 (see below).
 
-Tests live in four local Swift packages plus a host-run app suite:
+Tests live in five local Swift packages plus a host-run app suite:
 
 ```sh
 swift test --package-path Packages/Indicators
 swift test --package-path Packages/ClaudeUsage
 swift test --package-path Packages/PlatformStatus
 swift test --package-path Packages/Engine
+swift test --package-path Packages/AppUpdate
 xcodebuild -scheme MonoCl test
 ```
 
@@ -105,8 +146,8 @@ concepts. Claude Code's own status line receives the same figures, but
 only while Claude Code is running — which fails a menu bar indicator's
 entire purpose: answering "do I have budget?" at an arbitrary moment.
 
-So MonoCl is a personal tool, built and installed locally, ad-hoc
-signed, and shipped as source only. There is no App Store listing, no
+So MonoCl is a personal tool, built and installed locally, signed with
+a self-signed certificate, and shipped as source only. There is no App Store listing, no
 notarized release channel, and no binary to download. The exposure stays
 what it is intended to be: one person reading their own account's quota
 on their own machine, having read the paragraphs above and decided for
@@ -129,10 +170,21 @@ service `Claude Code-credentials`, account `NSUserName()`, written there
 by Claude Code. Reading it is the only way to ask the question.
 
 Because that item belongs to another application, macOS raises the
-keychain authorization dialog the first time MonoCl asks for it. Ad-hoc
-signing means the signature changes with every build, so a rebuilt
-MonoCl is a different application as far as the keychain is concerned
-and will ask again.
+keychain authorization dialog the first time MonoCl asks for it.
+Choosing "Always Allow" settles it for good: the grant is stored against
+the requesting binary's designated requirement, which for a
+certificate-signed binary names the leaf certificate rather than the
+code hash —
+
+```
+designated => identifier "net.sinistral.monocl"
+              and certificate leaf = H"cd26d8a3..."
+```
+
+— so it is satisfied by every later build, and by a build installed over
+this one. Ad-hoc signing had no certificate to name and fell back to the
+code hash, which changes with every build, which is why MonoCl used to
+ask once per rebuild.
 
 What MonoCl does with the token:
 
@@ -176,6 +228,37 @@ Additional triggers are launch, wake from sleep, and "Refresh now". No
 request may land within the minimum spacing of the last one, whichever
 trigger asked for it, and a `Retry-After` from the endpoint is honored
 in full. Opening the menu re-renders but never fetches.
+
+## Updates
+
+MonoCl is built and installed by hand, so nothing would otherwise tell
+you a newer version exists. Once a day, and once at launch, it asks
+GitHub for the repository's latest release and compares the tag against
+the running `CFBundleShortVersionString`. If the release is newer, a row
+appears in the menu naming the version and opening the release page.
+
+Notify-only: MonoCl installs nothing. The build is one you compiled, and
+an updater that replaced it would be replacing your own work. There is
+no notification and no mark on the status item either — the glyph means
+"the thing being measured is in a bad state", and MonoCl wanting
+attention is not that.
+
+No failure is ever reported as a fault; the worst any of them produces
+is the absence of a row. A settled answer — a repository with no release
+yet, which answers 404 and is this one's ordinary state until the first
+release is cut, or a tag that is not three whole numbers — means there
+is nothing to offer. A check that did not complete, because you were
+offline or rate-limited, means nothing at all: whatever was last known
+still stands, so a moment without a network cannot retract a row that is
+still true. An unsettled check is retried in fifteen minutes rather than
+tomorrow, because the check most likely to fail is the one at launch,
+before the network is up.
+
+The request carries no credential, and `api.github.com` is the only host
+MonoCl contacts that is not Anthropic's. The suites never contact it at
+all: `MONOCL_SKIP_UPDATE_CHECK` is set on the test scheme, because the
+test bundle is hosted by the app and the suites are offline by
+construction.
 
 ## Documentation
 

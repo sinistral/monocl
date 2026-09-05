@@ -21,6 +21,8 @@ packages:
     path: Packages/PlatformStatus
   Engine:
     path: Packages/Engine
+  AppUpdate:
+    path: Packages/AppUpdate
 
 targets:
   MonoCl:
@@ -42,10 +44,17 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.sinistral.monocl
-        # Ad-hoc signing: personal tool, not distributed.  The App
-        # Sandbox is deliberately absent - a sandboxed app cannot read
-        # another app's keychain item, which is the whole feature.
-        CODE_SIGN_IDENTITY: "-"
+        # Signed with a stable self-signed identity, created through
+        # Keychain Access as the README describes.  The designated
+        # requirement it produces names the leaf certificate rather than
+        # the cdhash, so
+        # the keychain grant for Claude Code's credential survives a
+        # rebuild; an ad-hoc signature would not.  Not a Developer ID:
+        # nothing here is distributed, so Gatekeeper never sees it.
+        #
+        # The App Sandbox is deliberately absent - a sandboxed app cannot
+        # read another app's keychain item, which is the whole feature.
+        CODE_SIGN_IDENTITY: "MonoCl Self-Signed"
         CODE_SIGN_STYLE: Manual
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_APP_SANDBOX: NO
@@ -55,6 +64,7 @@ targets:
       - package: ClaudeUsage
       - package: PlatformStatus
       - package: Engine
+      - package: AppUpdate
 
   MonoClTests:
     type: bundle.unit-test
@@ -79,10 +89,12 @@ schemes:
       targets:
         - MonoClTests
       # The test bundle is hosted by the app, so `xcodebuild test`
-      # launches MonoCl and AppDelegate reads the keychain before any
-      # test runs -- raising the authorization dialog on every run,
-      # since an ad-hoc signature changes with every build.  The host
-      # has no business reading a real credential, so it is given the
-      # state that is true of it: there is none.
+      # launches MonoCl and `applicationDidFinishLaunching` runs before
+      # any test does.  Neither of the things it starts has any business
+      # running here: the host should not read a real credential, and
+      # the suites are offline by construction, so it should not reach
+      # api.github.com either.  Each is given the state that is true of
+      # the host -- there is no credential, and there is no update check.
       environmentVariables:
         MONOCL_FAKE_CREDENTIAL: not-found
+        MONOCL_SKIP_UPDATE_CHECK: "1"

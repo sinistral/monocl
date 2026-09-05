@@ -1,4 +1,5 @@
 import AppKit
+import AppUpdate
 import ClaudeUsage
 import Engine
 import Indicators
@@ -24,6 +25,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSView
         },
         onChange: { [weak self] in self?.render() }
     )
+
+    /// Nil when the check is switched off, or when
+    /// `CFBundleShortVersionString` does not parse as a version, which
+    /// leaves nothing to compare a release against.
+    private lazy var updateChecker: UpdateChecker? = {
+        guard UpdateChecker.isEnabled() else { return nil }
+        guard let current = UpdateChecker.runningVersion else { return nil }
+        let source = UpdateSource()
+        return UpdateChecker(
+            check: { await source.check(against: current) },
+            onChange: { [weak self] in self?.renderMenu() }
+        )
+    }()
 
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
@@ -51,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSView
         observeSystemNotifications()
         observeButtonGeometry(item.button)
         engine.start()
+        updateChecker?.start()
     }
 
     /// An accessory app shows no menu bar of its own, so this menu is
@@ -185,9 +200,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSView
                 retry: #selector(retryUsage),
                 openSettings: #selector(openSettings),
                 openStatusPage: #selector(openStatusPage),
+                openReleasePage: #selector(openReleasePage),
                 quit: #selector(quit)
             ),
-            refreshPending: engine.pendingRefresh
+            refreshPending: engine.pendingRefresh,
+            availableUpdate: updateChecker?.available
         )
     }
 
@@ -277,6 +294,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSView
     /// which comes forward on its own.
     @objc private func openStatusPage() {
         NSWorkspace.shared.open(PlatformStatusSource.page)
+    }
+
+    /// Opens the release the update row names, which is where what
+    /// changed is written down.  MonoCl installs nothing itself: the
+    /// build is a local one, and an updater that replaced it would be
+    /// replacing a bundle the reader compiled.
+    @objc private func openReleasePage() {
+        guard let page = updateChecker?.available?.page else { return }
+        NSWorkspace.shared.open(page)
     }
 
     /// Activating first is what makes the window come forward: clicking
