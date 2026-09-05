@@ -180,3 +180,42 @@ glyph — so `draw(ring:)` and `draw(pie:)` branch on `gauge.fraction
 **Trigger:** the collision causing a real misreading in daily use, or
 any change that gives the gauges a use case where zero usage and
 unknown usage need to be told apart at a glance.
+
+---
+
+## 6. Stop the keychain dialog returning after every rebuild
+
+**Deferred:** eliminating the authorisation dialog that MonoCl raises
+for `Claude Code-credentials` once per rebuilt binary.
+
+Read this before attempting it: the obvious fix does not work, and was
+tried. A keychain ACL grant is bound to the requesting binary, and the
+ACL holds one record per binary rather than matching the requesting code
+against its designated requirement. Signing with a stable certificate
+therefore changes nothing here, even though the requirement it produces
+names the certificate rather than the code hash and so looks as though
+it should. Measured, with the requirement byte-identical across both
+launches and only the binary differing:
+
+| | code hash | ACL record for *this* binary | credential read |
+|---|---|---|---|
+| relaunch of a granted binary | `6885b88d…` | present | returns |
+| rebuild, freshly installed | `80848474…` | none | blocks on the dialog |
+
+The records accumulate, one per grant, which is the other tell: a
+requirement match would have reused the first.
+
+**Why deferring is acceptable:** the only mechanism that removes the
+dialog is the item's own access control — "Allow all applications to
+access this item" — which lets any process running as the user read the
+OAuth token without challenge. That is a security trade the reader has
+to make deliberately, and not one an ornament should make on their
+behalf or nudge them towards. A dialog once per rebuild is a
+one-click annoyance; MonoCl's behaviour after a *denial*, which is not
+to re-prompt on a timer, is what actually has to be right and is
+unaffected.
+
+**Trigger:** the rebuild cadence rising enough that the prompt stops
+being an annoyance and starts being an obstacle — or macOS changing how
+keychain ACLs match, which would make the requirement-based approach
+work and is worth re-testing after a major release.

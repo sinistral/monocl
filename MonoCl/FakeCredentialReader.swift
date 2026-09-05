@@ -22,12 +22,14 @@ import OSLog
     /// Why this exists
     /// ---
     ///
-    /// A keychain grant is bound to the requesting binary's signature.
-    /// MonoCl is signed with a stable certificate, so the grant now
-    /// survives a rebuild -- but it still has to be given once, and an
-    /// unattended run has nobody to answer the dialog that asks for it.
-    /// A launch that only needs the app to *hold* a credential can be
-    /// handed one from here instead.
+    /// A keychain grant is bound to the requesting binary, and the
+    /// keychain's ACL holds one record per binary rather than matching
+    /// against a designated requirement -- so a freshly built MonoCl is
+    /// a new applicant and raises the authorisation dialog again,
+    /// whatever it is signed with.  That dialog steals focus from
+    /// whatever is in front, and an unattended run has nobody to answer
+    /// it.  A launch that only needs the app to *hold* a credential can
+    /// be handed one from here instead.
     ///
     /// It also reaches states the real keychain reaches only after manual
     /// work in Keychain Access — a denial above all, which is the
