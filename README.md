@@ -59,7 +59,7 @@ Certificate Assistant → Create a Certificate…**:
 
 Set the validity period to something long — 3650 days. The keychain
 grant lasts exactly as long as the certificate does, so accepting the
-365-day default puts the authorization dialog back in a year.
+365-day default puts the authorisation dialog back in a year.
 
 Then grant `codesign` use of the key:
 
@@ -80,7 +80,7 @@ nothing on success.
 
 The certificate is deliberately left untrusted. `codesign` signs with
 an untrusted self-signed identity quite happily, and trusting it would
-raise an authorization dialog to satisfy a Gatekeeper that never sees
+raise an authorisation dialog to satisfy a Gatekeeper that never sees
 this app.
 
 ## Build and run
@@ -170,7 +170,7 @@ service `Claude Code-credentials`, account `NSUserName()`, written there
 by Claude Code. Reading it is the only way to ask the question.
 
 Because that item belongs to another application, macOS raises the
-keychain authorization dialog the first time MonoCl asks for it.
+keychain authorisation dialog the first time MonoCl asks for it.
 Choosing "Always Allow" settles it for good: the grant is stored against
 the requesting binary's designated requirement, which for a
 certificate-signed binary names the leaf certificate rather than the

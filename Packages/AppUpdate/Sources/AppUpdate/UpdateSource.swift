@@ -109,13 +109,13 @@ public struct UpdateSource: Sendable {
             // credential, so the error can only name those fields.
             logger.error(
                 "Release response did not decode: \(String(describing: error), privacy: .public)")
-            // Unsettled, despite a 200: the likeliest cause of a body
-            // that will not decode is not GitHub changing its schema but
-            // a captive portal answering on its behalf, which is exactly
-            // the transient case the reader should not lose a row over.
-            // The cost of being wrong is a check every fifteen minutes
-            // instead of every day -- 96 unauthenticated requests
-            // against a limit of 60 an hour.
+            // Unsettled, despite a 200.  Nothing here can tell a
+            // transient bad body from GitHub having changed its schema,
+            // and of the two mistakes available this is the cheaper one:
+            // calling it settled would retract a row that may well still
+            // be true, while calling it unsettled costs a check every
+            // fifteen minutes -- four an hour, against an unauthenticated
+            // limit of sixty -- for as long as the condition lasts.
             return .indeterminate
         } catch {
             logger.info("Release check did not complete: \(error.localizedDescription)")
