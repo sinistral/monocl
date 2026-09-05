@@ -1,5 +1,6 @@
 // MonoCl/MenuBuilder.swift
 import AppKit
+import AppUpdate
 import Engine
 import Foundation
 import Indicators
@@ -12,6 +13,7 @@ enum MenuBuilder {
         let retry: Selector
         let openSettings: Selector
         let openStatusPage: Selector
+        let openReleasePage: Selector
         let quit: Selector
     }
 
@@ -20,6 +22,7 @@ enum MenuBuilder {
         target: AnyObject,
         actions: Actions,
         refreshPending: PendingRefresh?,
+        availableUpdate: AvailableUpdate? = nil,
         timeZone: TimeZone = .current,
         now: Date = .now
     ) -> NSMenu {
@@ -30,6 +33,7 @@ enum MenuBuilder {
             target: target,
             actions: actions,
             refreshPending: refreshPending,
+            availableUpdate: availableUpdate,
             timeZone: timeZone,
             now: now
         )
@@ -46,6 +50,7 @@ enum MenuBuilder {
         target: AnyObject,
         actions: Actions,
         refreshPending: PendingRefresh?,
+        availableUpdate: AvailableUpdate? = nil,
         timeZone: TimeZone = .current,
         now: Date = .now
     ) {
@@ -110,6 +115,18 @@ enum MenuBuilder {
         }
         menu.addItem(withTitle: "Settings…", action: actions.openSettings, keyEquivalent: ",")
             .target = target
+
+        // Absent unless there is something to say.  A permanent "you are
+        // up to date" row would spend a line of a five-line menu on the
+        // answer that is true almost always.
+        if let availableUpdate {
+            menu.addItem(
+                withTitle: "Version \(availableUpdate.version) available…",
+                action: actions.openReleasePage,
+                keyEquivalent: ""
+            ).target = target
+        }
+
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit MonoCl", action: actions.quit, keyEquivalent: "q")
             .target = target

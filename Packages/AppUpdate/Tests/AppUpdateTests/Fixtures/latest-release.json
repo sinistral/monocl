@@ -1,0 +1,22 @@
+{
+  "url": "https://api.github.com/repos/sinistral/monocl/releases/1",
+  "assets_url": "https://api.github.com/repos/sinistral/monocl/releases/1/assets",
+  "html_url": "https://github.com/sinistral/monocl/releases/tag/v0.2.0",
+  "id": 1,
+  "author": { "login": "sinistral", "id": 2, "type": "User" },
+  "node_id": "RE_kwDOA",
+  "tag_name": "v0.2.0",
+  "target_commitish": "main",
+  "name": "v0.2.0",
+  "draft": false,
+  "immutable": false,
+  "prerelease": false,
+  "created_at": "2026-09-05T12:00:00Z",
+  "published_at": "2026-09-05T12:05:00Z",
+  "assets": [],
+  "tarball_url": "https://api.github.com/repos/sinistral/monocl/tarball/v0.2.0",
+  "zipball_url": "https://api.github.com/repos/sinistral/monocl/zipball/v0.2.0",
+  "body": "Notify-only update check.",
+  "reactions": { "url": "https://api.github.com/repos/sinistral/monocl/releases/1/reactions", "total_count": 0 },
+  "mentions_count": 0
+}
