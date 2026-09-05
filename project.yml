@@ -45,12 +45,17 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.sinistral.monocl
         # Signed with a stable self-signed identity, created through
-        # Keychain Access as the README describes.  The designated
-        # requirement it produces names the leaf certificate rather than
-        # the cdhash, so
-        # the keychain grant for Claude Code's credential survives a
-        # rebuild; an ad-hoc signature would not.  Not a Developer ID:
+        # Keychain Access as the README describes.  Not a Developer ID:
         # nothing here is distributed, so Gatekeeper never sees it.
+        #
+        # Making the keychain grant for Claude Code's credential survive
+        # a rebuild is why this identity was configured, and it does not
+        # achieve that.  The designated requirement it produces names the
+        # leaf certificate rather than the cdhash, but the keychain's ACL
+        # matches per binary rather than against that requirement, so a
+        # rebuild asks again either way -- measured, and written up under
+        # "Why keychain access is required" in the README.  An ad-hoc
+        # "-" identity would behave identically and need no setup.
         #
         # The App Sandbox is deliberately absent - a sandboxed app cannot
         # read another app's keychain item, which is the whole feature.

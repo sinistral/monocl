@@ -45,10 +45,22 @@ turns red for the real reason they will dismiss it.
 
 ## Signing identity, once per machine
 
-MonoCl is signed with a self-signed code signing certificate rather
-than ad-hoc, so that the keychain grant described below survives a
-rebuild. Create it in Keychain Access, under **Keychain Access →
-Certificate Assistant → Create a Certificate…**:
+MonoCl is signed with a self-signed code signing certificate rather than
+ad-hoc, and the steps below are what a fresh machine needs before it can
+build.
+
+Be clear about what they buy, because it is less than it looks: nothing.
+The certificate was introduced to stop the keychain dialog reappearing
+after a rebuild, and measurement showed it does not — see "Why keychain
+access is required" below. `CODE_SIGN_IDENTITY: "-"` in `project.yml`
+would build an ad-hoc binary that behaves identically in every respect
+this project cares about, and would need none of this setup. The
+certificate is retained because it is already configured and documented,
+not because it earns its keep; a reader who would rather skip the chore
+should set the identity to `"-"` and lose nothing.
+
+Create it in Keychain Access, under **Keychain Access → Certificate
+Assistant → Create a Certificate…**:
 
 | Field | Value |
 |---|---|
@@ -57,9 +69,10 @@ Certificate Assistant → Create a Certificate…**:
 | Certificate Type | Code Signing |
 | Let me override defaults | checked, so the validity period can be set |
 
-Set the validity period to something long — 3650 days. The keychain
-grant lasts exactly as long as the certificate does, so accepting the
-365-day default puts the authorisation dialog back in a year.
+Set the validity period to something long — 3650 days. A certificate
+that expires takes the identity with it, and a build that cannot be
+signed cannot be run; the 365-day default would make that a yearly
+chore for no reason.
 
 Then grant `codesign` use of the key:
 
@@ -91,8 +104,8 @@ xcodebuild -scheme MonoCl -configuration Release build
 ```
 
 Then copy the built `MonoCl.app` out of the derived-data path into
-`/Applications` and launch it. The first run asks for keychain access
-(see below).
+`/Applications` and launch it. The first run of each build asks for
+keychain access (see below).
 
 Tests live in five local Swift packages plus a host-run app suite:
 
@@ -171,20 +184,41 @@ by Claude Code. Reading it is the only way to ask the question.
 
 Because that item belongs to another application, macOS raises the
 keychain authorisation dialog the first time MonoCl asks for it.
-Choosing "Always Allow" settles it for good: the grant is stored against
-the requesting binary's designated requirement, which for a
-certificate-signed binary names the leaf certificate rather than the
-code hash —
+Choosing "Always Allow" adds MonoCl to the item's access control list,
+and that decision holds for **that binary** — relaunch it as often as
+you like and it will not ask again.
+
+It does not hold across a rebuild. The ACL stores one record per
+binary rather than matching the requesting code against its designated
+requirement, so a rebuilt MonoCl is a new applicant and asks again. The
+records accumulate: an ACL inspected after a week of rebuilds holds a
+long list of `MonoCl` entries, one per grant.
+
+This was measured rather than assumed, because the opposite is easy to
+believe. A certificate-signed binary declares a requirement that names
+the certificate rather than its own code hash —
 
 ```
 designated => identifier "net.sinistral.monocl"
               and certificate leaf = H"cd26d8a3..."
 ```
 
-— so it is satisfied by every later build, and by a build installed over
-this one. Ad-hoc signing had no certificate to name and fell back to the
-code hash, which changes with every build, which is why MonoCl used to
-ask once per rebuild.
+— which looks as though it should survive a rebuild. It does not. Two
+launches, differing only in the binary and with that requirement
+byte-identical in both:
+
+| | code hash | ACL record for *this* binary | credential read |
+|---|---|---|---|
+| relaunch of a granted binary | `6885b88d…` | present | returns |
+| rebuild, freshly installed | `80848474…` | none | blocks on the dialog |
+
+So signing with a stable identity is not what makes the dialog go away,
+and nothing in how MonoCl is built can make it go away. The one thing
+that can is the item's own access control: selecting **"Allow all
+applications to access this item"** in Keychain Access ends the
+prompting permanently, at the cost of letting any process running as you
+read the token without challenge. That is a trade for the reader to make
+deliberately, which is why MonoCl neither makes it nor recommends it.
 
 What MonoCl does with the token:
 
