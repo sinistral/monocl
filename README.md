@@ -300,6 +300,11 @@ Design documents and implementation plans live in `docs/superpowers/`.
 `DEFERRED.md`, at the repository root, records what was consciously left
 undone and why.
 
+## Alternatives
+
+ * **[CodexBar](https://github.com/steipete/CodexBar/):** Comprehensive
+ Agent platform coverage.
+
 ## License
 
 BSD 3-Clause. See [LICENSE](LICENSE).
