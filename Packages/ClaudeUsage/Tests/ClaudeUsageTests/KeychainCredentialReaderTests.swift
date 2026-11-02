@@ -142,6 +142,16 @@ struct KeychainExitStatusTests {
 
     // `security -w` ends its output with a newline; the decoder must take
     // it as trailing whitespace rather than reject the record.
+    // The form `security -w` takes once any byte is not printable ASCII;
+    // `readsHexPrintedRecord` shows the tool producing it.
+    @Test("Hex output from the tool is decoded before the record is read")
+    func hexOutput() throws {
+        let record = #"{"claudeAiOauth":{"accessToken":"café","expiresAt":1767225600}}"#
+        let output = Data((hex(record) + "\n").utf8)
+        let credential = try KeychainCredentialReader.credential(exitStatus: 0, output: output)
+        #expect(credential.accessToken == "café")
+    }
+
     @Test("A trailing newline from the tool is accepted")
     func trailingNewline() throws {
         let output = Data(

@@ -115,15 +115,22 @@ public struct KeychainCredentialReader: CredentialReading {
     /// confused: Claude Code's record is a JSON object, which opens with
     /// `{`, and that is not a hex digit.
     private static func payload(from output: Data) -> Data {
-        var text = String(decoding: output, as: UTF8.self)
-        while text.last?.isNewline == true { text.removeLast() }
-        guard !text.isEmpty, text.count.isMultiple(of: 2), text.allSatisfy(\.isHexDigit)
+        var printed = output
+        while printed.last == UInt8(ascii: "\n") { printed.removeLast() }
+        let nibbles = printed.compactMap(nibble)
+        guard !nibbles.isEmpty, nibbles.count == printed.count, nibbles.count.isMultiple(of: 2)
         else { return output }
 
-        let digits = Array(text.utf8)
-        let bytes = stride(from: 0, to: digits.count, by: 2).compactMap {
-            UInt8(String(decoding: digits[$0...$0 + 1], as: UTF8.self), radix: 16)
+        return Data(
+            stride(from: 0, to: nibbles.count, by: 2).map { nibbles[$0] << 4 | nibbles[$0 + 1] })
+    }
+
+    private static func nibble(_ byte: UInt8) -> UInt8? {
+        switch byte {
+        case UInt8(ascii: "0")...UInt8(ascii: "9"): byte - UInt8(ascii: "0")
+        case UInt8(ascii: "a")...UInt8(ascii: "f"): byte - UInt8(ascii: "a") + 10
+        case UInt8(ascii: "A")...UInt8(ascii: "F"): byte - UInt8(ascii: "A") + 10
+        default: nil
         }
-        return Data(bytes)
     }
 }
