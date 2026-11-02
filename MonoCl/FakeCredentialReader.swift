@@ -21,14 +21,10 @@ import OSLog
     /// Why this exists
     /// ---
     ///
-    /// A keychain grant is bound to the requesting binary, and the
-    /// keychain's ACL holds one record per binary rather than matching
-    /// against a designated requirement -- so a freshly built MonoCl is
-    /// a new applicant and raises the authorisation dialog again,
-    /// whatever it is signed with.  That dialog steals focus from
-    /// whatever is in front, and an unattended run has nobody to answer
-    /// it.  A launch that only needs the app to *hold* a credential can
-    /// be handed one from here instead.
+    /// The keychain read raises no dialog, but it hands a launch the real
+    /// token, in whatever state the real record happens to be.  A launch
+    /// that only needs the app to *hold* a credential can be handed one
+    /// from here instead.
     ///
     /// It also reaches states the real keychain reaches only after manual
     /// work in Keychain Access — a denial above all, which is the
@@ -83,7 +79,7 @@ func resolvedCredentialReader(
         }
         guard let fake = FakeCredential(rawValue: raw) else {
             // Deliberately fatal rather than falling back to the keychain:
-            // a silent fallback would raise the very dialog the variable
+            // a silent fallback would read the very credential the variable
             // was set to avoid, and would do so after the run had already
             // been left unattended.
             let accepted = FakeCredential.allCases.map(\.rawValue).joined(separator: ", ")
@@ -92,8 +88,8 @@ func resolvedCredentialReader(
         // Logged because the silent case is the confusing one: a variable
         // that failed to reach the process — `open -a` starts the app
         // from launchd, which does not carry the shell's environment — is
-        // otherwise indistinguishable from one never set, and the keychain
-        // dialog it produces looks like the fake having no effect.
+        // otherwise indistinguishable from one never set, and the real
+        // reading it produces looks like the fake having no effect.
         Logger(subsystem: "net.sinistral.monocl", category: "credentials")
             .notice("Using fake credential: \(fake.rawValue, privacy: .public)")
         return FakeCredentialReader(outcome: fake)
