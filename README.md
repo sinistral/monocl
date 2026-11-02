@@ -43,60 +43,6 @@ turns red for the real reason they will dismiss it.
   is generated from `project.yml` and is not checked in
 - Claude Code, signed in on the same machine
 
-## Signing identity, once per machine
-
-MonoCl is signed with a self-signed code signing certificate rather than
-ad-hoc, and the steps below are what a fresh machine needs before it can
-build.
-
-Be clear about what they buy, because it is less than it looks: nothing.
-The certificate was introduced to stop the keychain dialog reappearing
-after a rebuild, and measurement showed it does not; MonoCl now reads the
-credential without any keychain grant, so signing plays no part in it —
-see "Why keychain access is required" below. `CODE_SIGN_IDENTITY: "-"`
-in `project.yml` would build an ad-hoc binary that behaves identically in every respect
-this project cares about, and would need none of this setup. The
-certificate is retained because it is already configured and documented,
-not because it earns its keep; a reader who would rather skip the chore
-should set the identity to `"-"` and lose nothing.
-
-Create it in Keychain Access, under **Keychain Access → Certificate
-Assistant → Create a Certificate…**:
-
-| Field | Value |
-|---|---|
-| Name | `MonoCl Self-Signed`, matching `CODE_SIGN_IDENTITY` in `project.yml` |
-| Identity Type | Self Signed Root |
-| Certificate Type | Code Signing |
-| Let me override defaults | checked, so the validity period can be set |
-
-Set the validity period to something long — 3650 days. A certificate
-that expires takes the identity with it, and a build that cannot be
-signed cannot be run; the 365-day default would make that a yearly
-chore for no reason.
-
-Then grant `codesign` use of the key:
-
-```sh
-security set-key-partition-list \
-  -S apple-tool:,apple:,codesign: -s -l "MonoCl Self-Signed" \
-  ~/Library/Keychains/login.keychain-db
-```
-
-This is not optional and not automatic. macOS gates private-key use on
-the ACL partition list as well as on the trusted-application list, and
-neither Certificate Assistant nor `security import` populates it for
-`codesign`. Without it, every build raises a password dialog per
-`codesign` invocation — and a build that signs the app, the test bundle
-and the packages concurrently raises one for each, queued behind one
-another. The command asks for the login keychain password and prints
-nothing on success.
-
-The certificate is deliberately left untrusted. `codesign` signs with
-an untrusted self-signed identity quite happily, and trusting it would
-raise an authorisation dialog to satisfy a Gatekeeper that never sees
-this app.
-
 ## Build and run
 
 ```sh
@@ -159,8 +105,8 @@ concepts. Claude Code's own status line receives the same figures, but
 only while Claude Code is running — which fails a menu bar indicator's
 entire purpose: answering "do I have budget?" at an arbitrary moment.
 
-So MonoCl is a personal tool, built and installed locally, signed with
-a self-signed certificate, and shipped as source only. There is no App Store listing, no
+So MonoCl is a personal tool, built and installed locally, ad-hoc
+signed, and shipped as source only. There is no App Store listing, no
 notarized release channel, and no binary to download. The exposure stays
 what it is intended to be: one person reading their own account's quota
 on their own machine, having read the paragraphs above and decided for

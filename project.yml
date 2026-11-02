@@ -9,8 +9,8 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    MARKETING_VERSION: "0.3.0"
-    CURRENT_PROJECT_VERSION: "4"
+    MARKETING_VERSION: "0.3.1"
+    CURRENT_PROJECT_VERSION: "5"
 
 packages:
   Indicators:
@@ -44,22 +44,16 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.sinistral.monocl
-        # Signed with a stable self-signed identity, created through
-        # Keychain Access as the README describes.  Not a Developer ID:
-        # nothing here is distributed, so Gatekeeper never sees it.
-        #
-        # Making the keychain grant for Claude Code's credential survive
-        # a rebuild is why this identity was configured, and it does not
-        # achieve that.  The designated requirement it produces names the
-        # leaf certificate rather than the cdhash, but the keychain's ACL
-        # matches per binary rather than against that requirement, so a
-        # rebuild asks again either way -- measured, and written up under
-        # "Why keychain access is required" in the README.  An ad-hoc
-        # "-" identity would behave identically and need no setup.
+        # Ad-hoc signing: a personal tool, not distributed, so Gatekeeper
+        # never sees it.  No keychain grant depends on the signature,
+        # because the credential is read through /usr/bin/security --
+        # see "Why keychain access is required" in the README.  A
+        # self-signed identity was tried for that grant and bought
+        # nothing.
         #
         # The App Sandbox is deliberately absent - a sandboxed app cannot
         # read another app's keychain item, which is the whole feature.
-        CODE_SIGN_IDENTITY: "MonoCl Self-Signed"
+        CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_APP_SANDBOX: NO
