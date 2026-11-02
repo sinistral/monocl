@@ -51,9 +51,10 @@ build.
 
 Be clear about what they buy, because it is less than it looks: nothing.
 The certificate was introduced to stop the keychain dialog reappearing
-after a rebuild, and measurement showed it does not — see "Why keychain
-access is required" below. `CODE_SIGN_IDENTITY: "-"` in `project.yml`
-would build an ad-hoc binary that behaves identically in every respect
+after a rebuild, and measurement showed it does not; MonoCl now reads the
+credential without any keychain grant, so signing plays no part in it —
+see "Why keychain access is required" below. `CODE_SIGN_IDENTITY: "-"`
+in `project.yml` would build an ad-hoc binary that behaves identically in every respect
 this project cares about, and would need none of this setup. The
 certificate is retained because it is already configured and documented,
 not because it earns its keep; a reader who would rather skip the chore
@@ -104,8 +105,7 @@ xcodebuild -scheme MonoCl -configuration Release build
 ```
 
 Then copy the built `MonoCl.app` out of the derived-data path into
-`/Applications` and launch it. The first run of each build asks for
-keychain access (see below).
+`/Applications` and launch it.
 
 Tests live in five local Swift packages plus a host-run app suite:
 
@@ -182,48 +182,42 @@ subscription's OAuth token. That token lives in the login keychain under
 service `Claude Code-credentials`, account `NSUserName()`, written there
 by Claude Code. Reading it is the only way to ask the question.
 
-Because that item belongs to another application, macOS raises the
-keychain authorisation dialog the first time MonoCl asks for it.
-Choosing "Always Allow" adds MonoCl to the item's access control list,
-and that decision holds for **that binary** — relaunch it as often as
-you like and it will not ask again.
+MonoCl does not ask the Security framework for that item. It runs
+`/usr/bin/security find-generic-password`, the command Claude Code
+itself uses to read its login, and decodes the record from its output.
+No keychain dialog appears, on first launch or after a rebuild.
 
-It does not hold across a rebuild. The ACL stores one record per
-binary rather than matching the requesting code against its designated
-requirement, so a rebuilt MonoCl is a new applicant and asks again. The
-records accumulate: an ACL inspected after a week of rebuilds holds a
-long list of `MonoCl` entries, one per grant.
+The obvious approach fails in a way that looks like flakiness, so the
+reason is worth knowing. A keychain item's access control holds a list
+of applications and a *partition list*. "Always Allow" adds the
+requesting app to both, and an app with no Team ID — any self-signed or
+ad-hoc build, MonoCl included — enters the partition list as
+`cdhash:<hash>`, the hash of that exact binary. Two consequences follow,
+both observed:
 
-This was measured rather than assumed, because the opposite is easy to
-believe. A certificate-signed binary declares a requirement that names
-the certificate rather than its own code hash —
+- **A rebuild asks again**, because the new binary has a new hash.
+  Signing with a stable certificate does not change that.
+- **Claude Code revokes the grant every time it saves a token.** It
+  writes with `security add-generic-password -U`, and that update resets
+  the partition list to `apple-tool:` alone. Claude Code refreshes its
+  token several times a day, and each refresh made MonoCl's next poll
+  raise the dialog again.
 
-```
-designated => identifier "net.sinistral.monocl"
-              and certificate leaf = H"cd26d8a3..."
-```
+`/usr/bin/security` survives both, because Claude Code's own writes keep
+it on the application list and keep its partition, `apple-tool:`, in
+place. Running it makes `security`, not MonoCl, the process the keychain
+checks.
 
-— which looks as though it should survive a rebuild. It does not. Two
-launches, differing only in the binary and with that requirement
-byte-identical in both:
-
-| | code hash | ACL record for *this* binary | credential read |
-|---|---|---|---|
-| relaunch of a granted binary | `6885b88d…` | present | returns |
-| rebuild, freshly installed | `80848474…` | none | blocks on the dialog |
-
-So signing with a stable identity is not what makes the dialog go away,
-and nothing in how MonoCl is built can make it go away. The one thing
-that can is the item's own access control: selecting **"Allow all
-applications to access this item"** in Keychain Access ends the
-prompting permanently, at the cost of letting any process running as you
-read the token without challenge. That is a trade for the reader to make
-deliberately, which is why MonoCl neither makes it nor recommends it.
+This widens nothing. Any process running as you can already read the
+item this way without a dialog, because that is how Claude Code's
+writes leave it; the dialog MonoCl used to raise protected the token
+from no one. It holds for as long as Claude Code writes the item with
+`security`, as Claude Code 2.1.316 does on macOS 26.
 
 What MonoCl does with the token:
 
-- **Reads only.** `KeychainCredentialReader` contains no `SecItemAdd`,
-  `SecItemUpdate`, or `SecItemDelete`.
+- **Reads only.** The one command `KeychainCredentialReader` runs is
+  `security find-generic-password`.
 - **Never refreshes it.** Claude Code rotates refresh tokens under a
   compare-and-swap, so a MonoCl-side refresh would invalidate the copy
   Claude Code holds and break your login. The accepted consequence is
@@ -234,7 +228,9 @@ What MonoCl does with the token:
   `Encodable`, and both `description` and `debugDescription` report
   `<redacted>`, so a `dump()` or a string interpolation cannot leak it.
   `URLSession` runs on an ephemeral configuration, so no credential,
-  cookie, or cache reaches disk.
+  cookie, or cache reaches disk. The token arrives over a pipe from
+  `security`, never as a command-line argument, so no process listing
+  shows it.
 - **Re-reads it every poll** rather than caching, because that is the
   only way to pick up a token Claude Code has rotated.
 - **Checks expiry before asking.** If the stored token has expired,
@@ -245,9 +241,11 @@ memory for the lifetime of one request, because no HTTP header can be
 set without one. The guarantee is about persistence, logging, and
 serialization — not about absence from process memory.
 
-If you decline the keychain dialog, MonoCl stops polling usage and
-offers an explicit "Retry" in the menu. It will not re-prompt on a
-timer; a modal dialog every minute is worse than a blank gauge.
+Should a keychain dialog ever appear — which takes the item's access
+control being changed so that `security` itself must ask — and you
+decline it, MonoCl stops polling usage and offers an explicit "Retry" in
+the menu. It will not re-prompt on a timer; a modal dialog every minute
+is worse than a blank gauge.
 
 The platform status source needs no credential at all:
 `https://status.claude.com/api/v2/summary.json` is public, and its

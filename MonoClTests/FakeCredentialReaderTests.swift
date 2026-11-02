@@ -1,7 +1,6 @@
 #if DEBUG
     import ClaudeUsage
     import Foundation
-    import Security
     import Testing
     @testable import MonoCl
 
@@ -48,9 +47,9 @@
             #expect(throws: CredentialError.malformed) { try read(.malformed) }
         }
 
-        @Test("unexpected reports a keychain status, not a denial")
+        @Test("unexpected reports a tool failure, not a denial")
         func unexpected() {
-            #expect(throws: CredentialError.unexpected(errSecNotAvailable)) {
+            #expect(throws: CredentialError.unexpected(exitStatus: 1)) {
                 try read(.unexpected)
             }
         }
