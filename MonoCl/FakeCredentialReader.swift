@@ -3,7 +3,6 @@ import Foundation
 import OSLog
 
 #if DEBUG
-    import Security
 
     /// The states `FakeCredentialReader` can be asked to present.  Raw
     /// values are the vocabulary of `MONOCL_FAKE_CREDENTIAL`.
@@ -56,7 +55,7 @@ import OSLog
             case .malformed:
                 throw CredentialError.malformed
             case .unexpected:
-                throw CredentialError.unexpected(errSecNotAvailable)
+                throw CredentialError.unexpected(exitStatus: 1)
             }
         }
 

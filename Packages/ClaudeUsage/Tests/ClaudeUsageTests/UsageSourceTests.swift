@@ -105,7 +105,7 @@ struct UsageSourceTests {
         arguments: [
             (CredentialError.notFound, UsageFailure.credentialsNotFound),
             (CredentialError.accessDenied, UsageFailure.keychainDenied),
-            (CredentialError.unexpected(-25291), UsageFailure.keychainUnavailable),
+            (CredentialError.unexpected(exitStatus: 1), UsageFailure.keychainUnavailable),
             (CredentialError.malformed, UsageFailure.credentialsUnreadable),
         ])
     func credentialErrors(error: CredentialError, expected: UsageFailure) async {
