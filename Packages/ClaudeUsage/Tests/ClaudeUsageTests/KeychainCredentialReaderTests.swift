@@ -141,7 +141,7 @@ struct KeychainExitStatusTests {
     }
 
     // Bare hex is the form `security -w` takes once any byte is not
-    // printable ASCII; `readsHexPrintedRecord` shows the tool producing it.
+    // printable ASCII; `readsHexPrintedRecord` reads a record printed so.
     @Test("Hex output from the tool is decoded before the record is read")
     func hexOutput() throws {
         let record = #"{"claudeAiOauth":{"accessToken":"café","expiresAt":1767225600}}"#

@@ -117,7 +117,7 @@ public struct KeychainCredentialReader: CredentialReading {
     ///
     /// Only `\n` is stripped and only lowercase digits are read, because
     /// that is what the tool was observed to print: hex such as
-    /// `7b2261…7d`, then a single `0a`.
+    /// `7b2261…7d`, then a newline byte.
     private static func payload(from output: Data) -> Data {
         var printed = output
         while printed.last == UInt8(ascii: "\n") { printed.removeLast() }
