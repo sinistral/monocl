@@ -21,7 +21,7 @@ import OSLog
     /// Why this exists
     /// ---
     ///
-    /// The keychain read raises no dialog, but it hands a launch the real
+    /// The keychain read normally raises no dialog, but it hands a launch the real
     /// token, in whatever state the real record happens to be.  A launch
     /// that only needs the app to *hold* a credential can be handed one
     /// from here instead.
@@ -80,8 +80,7 @@ func resolvedCredentialReader(
         guard let fake = FakeCredential(rawValue: raw) else {
             // Deliberately fatal rather than falling back to the keychain:
             // a silent fallback would read the very credential the variable
-            // was set to avoid, and would do so after the run had already
-            // been left unattended.
+            // was set to avoid.
             let accepted = FakeCredential.allCases.map(\.rawValue).joined(separator: ", ")
             fatalError("\(fakeCredentialVariable)=\(raw) is not one of: \(accepted)")
         }
