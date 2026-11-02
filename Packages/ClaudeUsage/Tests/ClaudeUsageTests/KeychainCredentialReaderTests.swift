@@ -32,8 +32,9 @@ private func hex(_ string: String) -> String {
 /// and `deinit` deletes that item whether or not the test passed.
 ///
 /// Keychain UI is switched off for this process for the duration of each
-/// test.  That is what makes "without a dialog" checkable by machine: a
-/// read that would have prompted fails at once with
+/// test.  That is what makes "without a dialog" checkable by machine for
+/// a read made in-process, the regression this suite guards against: such
+/// a read that would have prompted fails at once with
 /// `errSecInteractionNotAllowed` instead of waiting for a human, who
 /// might click Allow and pass a broken reader.  The switch is per
 /// process, so it does not reach the `security` child the reader runs.
@@ -63,7 +64,7 @@ final class KeychainCredentialReaderTests {
         let status = try runSecurity([
             "add-generic-password", "-U", "-a", account, "-s", service, "-X", hex(payload),
         ])
-        #expect(status == 0)
+        try #require(status == 0)
     }
 
     // The test process holds no grant on the item, so a reader that asked
@@ -81,6 +82,20 @@ final class KeychainCredentialReaderTests {
 
         #expect(credential.accessToken == "second")
         #expect(credential.expiresAt == Date(timeIntervalSince1970: 1_767_229_200))
+    }
+
+    // `security -w` prints the item as bare hex, not text, once any byte
+    // is not printable ASCII — so one accented character anywhere in
+    // Claude Code's record would otherwise read as malformed on every poll.
+    @Test("Reads a record with a non-ASCII byte, which the tool prints as hex")
+    func readsHexPrintedRecord() throws {
+        try writeAsClaudeCode(
+            #"{"claudeAiOauth":{"accessToken":"café","expiresAt":1767225600}}"#)
+
+        let credential = try reader.read()
+
+        #expect(credential.accessToken == "café")
+        #expect(credential.expiresAt == Date(timeIntervalSince1970: 1_767_225_600))
     }
 
     @Test("An absent item reads as not found")

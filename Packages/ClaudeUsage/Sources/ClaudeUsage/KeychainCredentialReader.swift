@@ -61,6 +61,11 @@ public struct KeychainCredentialReader: CredentialReading {
         let data = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
 
+        // A signal number is not an exit status, and must not be read as
+        // one by the table below.
+        guard process.terminationReason == .exit else {
+            throw CredentialError.unexpected(exitStatus: nil)
+        }
         return try Self.credential(exitStatus: process.terminationStatus, output: data)
     }
 
@@ -75,7 +80,8 @@ public struct KeychainCredentialReader: CredentialReading {
         switch exitStatus {
         case 0:
             do {
-                return try JSONDecoder().decode(KeychainRecord.self, from: output).claudeAiOauth
+                return try JSONDecoder().decode(KeychainRecord.self, from: payload(from: output))
+                    .claudeAiOauth
             } catch {
                 throw CredentialError.malformed
             }
@@ -101,4 +107,23 @@ public struct KeychainCredentialReader: CredentialReading {
     ]
 
     private static func lowByte(_ status: OSStatus) -> Int32 { status & 0xFF }
+
+    /// The item's bytes, from what `security -w` printed.
+    ///
+    /// The tool prints the item as text, or as bare hex once any byte is
+    /// not printable ASCII (non-ASCII UTF-8 included).  The two cannot be
+    /// confused: Claude Code's record is a JSON object, which opens with
+    /// `{`, and that is not a hex digit.
+    private static func payload(from output: Data) -> Data {
+        var text = String(decoding: output, as: UTF8.self)
+        while text.last?.isNewline == true { text.removeLast() }
+        guard !text.isEmpty, text.count.isMultiple(of: 2), text.allSatisfy(\.isHexDigit)
+        else { return output }
+
+        let digits = Array(text.utf8)
+        let bytes = stride(from: 0, to: digits.count, by: 2).compactMap {
+            UInt8(String(decoding: digits[$0...$0 + 1], as: UTF8.self), radix: 16)
+        }
+        return Data(bytes)
+    }
 }

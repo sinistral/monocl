@@ -8,7 +8,7 @@ public enum CredentialError: Error, Equatable, Sendable {
     /// Any outcome that is not a recognised absence or denial.
     ///
     /// `exitStatus` is the `security` tool's exit status, or nil when the
-    /// tool could not be launched at all.
+    /// tool could not be launched or was ended by a signal.
     ///
     /// Kept distinct from `accessDenied` because denial is sticky — it
     /// stops polling until the user asks for a retry — and a transient
