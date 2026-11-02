@@ -21,10 +21,10 @@ import OSLog
     /// Why this exists
     /// ---
     ///
-    /// The keychain read normally raises no dialog, but it hands a launch the real
-    /// token, in whatever state the real record happens to be.  A launch
-    /// that only needs the app to *hold* a credential can be handed one
-    /// from here instead.
+    /// The keychain read normally raises no dialog, but it hands a launch
+    /// the real token, in whatever state the real record happens to be.
+    /// A launch that only needs the app to *hold* a credential can be
+    /// handed one from here instead.
     ///
     /// It also reaches states the real keychain reaches only after manual
     /// work in Keychain Access — a denial above all, which is the

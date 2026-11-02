@@ -114,6 +114,10 @@ public struct KeychainCredentialReader: CredentialReading {
     /// not printable ASCII (non-ASCII UTF-8 included).  The two cannot be
     /// confused: Claude Code's record is a JSON object, which opens with
     /// `{`, and that is not a hex digit.
+    ///
+    /// Only `\n` is stripped and only lowercase digits are read, because
+    /// that is what the tool was observed to print: hex such as
+    /// `7b2261…7d`, then a single `0a`.
     private static func payload(from output: Data) -> Data {
         var printed = output
         while printed.last == UInt8(ascii: "\n") { printed.removeLast() }
@@ -129,7 +133,6 @@ public struct KeychainCredentialReader: CredentialReading {
         switch byte {
         case UInt8(ascii: "0")...UInt8(ascii: "9"): byte - UInt8(ascii: "0")
         case UInt8(ascii: "a")...UInt8(ascii: "f"): byte - UInt8(ascii: "a") + 10
-        case UInt8(ascii: "A")...UInt8(ascii: "F"): byte - UInt8(ascii: "A") + 10
         default: nil
         }
     }

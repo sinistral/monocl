@@ -140,10 +140,8 @@ struct KeychainExitStatusTests {
         #expect(credential.expiresAt == Date(timeIntervalSince1970: 1_767_225_600))
     }
 
-    // `security -w` ends its output with a newline; the decoder must take
-    // it as trailing whitespace rather than reject the record.
-    // The form `security -w` takes once any byte is not printable ASCII;
-    // `readsHexPrintedRecord` shows the tool producing it.
+    // Bare hex is the form `security -w` takes once any byte is not
+    // printable ASCII; `readsHexPrintedRecord` shows the tool producing it.
     @Test("Hex output from the tool is decoded before the record is read")
     func hexOutput() throws {
         let record = #"{"claudeAiOauth":{"accessToken":"café","expiresAt":1767225600}}"#
@@ -152,6 +150,8 @@ struct KeychainExitStatusTests {
         #expect(credential.accessToken == "café")
     }
 
+    // `security -w` ends its output with a newline; the decoder must take
+    // it as trailing whitespace rather than reject the record.
     @Test("A trailing newline from the tool is accepted")
     func trailingNewline() throws {
         let output = Data(
